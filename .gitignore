@@ -1,0 +1,14 @@
+﻿/build/
+/artifacts/
+*.exe
+*.obj
+*.pdb
+*.ilk
+*.lib
+*.exp
+/.vs/
+/CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+Testing/
