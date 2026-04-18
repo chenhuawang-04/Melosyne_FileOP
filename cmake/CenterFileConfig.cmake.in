@@ -1,0 +1,5 @@
+﻿@PACKAGE_INIT@
+
+include("${CMAKE_CURRENT_LIST_DIR}/CenterFileTargets.cmake")
+
+check_required_components(CenterFile)

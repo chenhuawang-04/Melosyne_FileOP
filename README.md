@@ -277,3 +277,48 @@ using namespace Center::File;
 - 宏定义传播仍建议沿用 `include/Center/File/Config.hpp`（宏定义天然不通过 module export 传播）。
 - 当 CMake >= 3.28 且 `CENTER_FILE_ENABLE_MODULES=ON` 时，会启用 `Center::FileModules` 目标。
 - 当 CMake < 3.28 时，会保留模块源码文件但不作为 `CXX_MODULES` 编译（兼容现有构建环境）。
+
+## 12. 便捷接入任意项目（推荐）
+
+### 12.1 方式 A：`add_subdirectory` / FetchContent（最常用）
+
+```cmake
+# 你的主项目 CMakeLists.txt
+set(CENTER_FILE_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(CENTER_FILE_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
+set(CENTER_FILE_ENABLE_MODULES ON CACHE BOOL "" FORCE)
+
+add_subdirectory(external/FileOp_New)
+
+target_link_libraries(MyGame PRIVATE Center::File)
+# 如果要用 module 入口：
+# target_link_libraries(MyGame PRIVATE Center::FileModules)
+```
+
+### 12.2 方式 B：安装后 `find_package`
+
+在 FileOp_New 内安装：
+
+```powershell
+cmake -S . -B build -G Ninja -DCENTER_FILE_INSTALL=ON -DCENTER_FILE_BUILD_TESTS=OFF -DCENTER_FILE_BUILD_BENCHMARKS=OFF
+cmake --build build
+cmake --install build --prefix <install-prefix>
+```
+
+在你的项目里使用：
+
+```cmake
+find_package(CenterFile CONFIG REQUIRED)
+target_link_libraries(MyGame PRIVATE Center::File)
+# 如需模块目标：
+# target_link_libraries(MyGame PRIVATE Center::FileModules)
+```
+
+### 12.3 关键 CMake 选项
+
+- `CENTER_FILE_BUILD_TESTS`：是否构建测试（默认顶层工程 ON）
+- `CENTER_FILE_BUILD_BENCHMARKS`：是否构建基准（默认顶层工程 ON）
+- `CENTER_FILE_ENABLE_MODULES`：是否启用 cppm 模块目标
+- `CENTER_FILE_ENABLE_THREAD_CENTER`：是否启用 ThreadCenter 适配
+- `CENTER_FILE_THREAD_CENTER_ROOT`：ThreadCenter 路径
+- `CENTER_FILE_INSTALL`：是否生成 install/export 包
