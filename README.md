@@ -255,3 +255,25 @@ CMake 选项：
 ## 10. 许可证
 
 见 `LICENSE`。
+
+## 11. C++23 Modules 版本（对称实现）
+
+本仓库已提供与 `include/Center/File` 对称的模块接口单元：
+
+- 路径：`modules/Center/File/*.cppm`
+- 聚合入口：`Center.File.FileOp`（文件：`modules/Center/File/FileOp.cppm`）
+
+示例：
+
+```cpp
+import Center.File.FileOp;
+
+using namespace Center::File;
+```
+
+说明：
+
+- 这些 `.cppm` 为真实模块接口实现，不是头文件包装。
+- 宏定义传播仍建议沿用 `include/Center/File/Config.hpp`（宏定义天然不通过 module export 传播）。
+- 当 CMake >= 3.28 且 `CENTER_FILE_ENABLE_MODULES=ON` 时，会启用 `Center::FileModules` 目标。
+- 当 CMake < 3.28 时，会保留模块源码文件但不作为 `CXX_MODULES` 编译（兼容现有构建环境）。

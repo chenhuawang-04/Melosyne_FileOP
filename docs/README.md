@@ -28,3 +28,7 @@
 - 新增报告请优先放在仓库根目录或 `docs/` 下，并在此处登记。
 - 所有文档统一使用 UTF-8 编码。
 - 文档命名建议包含时间或阶段标识，便于回溯。
+
+## Modules
+
+- 对称 module 接口：../modules/Center/File/*.cppm`n- 聚合模块入口：../modules/Center/File/FileOp.cppm`n
