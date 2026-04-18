@@ -72,3 +72,33 @@ add_executable(global_file_scheduler_tests
 target_link_libraries(global_file_scheduler_tests PRIVATE Center::File)
 target_compile_features(global_file_scheduler_tests PRIVATE cxx_std_23)
 
+
+add_executable(triple_read_buffer_tests
+    tests/triple_read_buffer_tests.cpp
+)
+target_link_libraries(triple_read_buffer_tests PRIVATE Center::File)
+target_compile_features(triple_read_buffer_tests PRIVATE cxx_std_23)
+
+add_executable(stream_read_session_tests
+    tests/stream_read_session_tests.cpp
+)
+target_link_libraries(stream_read_session_tests PRIVATE Center::File)
+target_compile_features(stream_read_session_tests PRIVATE cxx_std_23)
+
+
+
+
+
+add_executable(stream_read_benchmark
+    bench/stream_read_benchmark.cpp
+)
+target_link_libraries(stream_read_benchmark PRIVATE Center::File)
+target_compile_features(stream_read_benchmark PRIVATE cxx_std_23)
+
+
+add_executable(stream_read_session_async_tests
+    tests/stream_read_session_async_tests.cpp
+)
+target_link_libraries(stream_read_session_async_tests PRIVATE Center::File)
+target_compile_features(stream_read_session_async_tests PRIVATE cxx_std_23)
+

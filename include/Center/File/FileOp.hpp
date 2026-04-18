@@ -10,3 +10,7 @@
 #include "Center/File/ThreadCenterAdapter.hpp"
 #include "Center/File/FileReadScheduler.hpp"
 #include "Center/File/GlobalFileScheduler.hpp"
+#include "Center/File/StreamTypes.hpp"
+#include "Center/File/TripleReadBuffer.hpp"
+#include "Center/File/StreamReadSession.hpp"
+#include "Center/File/StreamReadSessionAsync.hpp"
