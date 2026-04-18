@@ -13,6 +13,17 @@ option(CENTER_FILE_INSTALL "Enable install/export package config" ${PROJECT_IS_T
 
 set(CENTER_FILE_THREAD_CENTER_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../ThreadCenter" CACHE PATH "Path to ThreadCenter project root")
 
+# Subproject-friendly defaults:
+# - when consumed via add_subdirectory/FetchContent, tests & benchmarks stay OFF by default.
+if (NOT PROJECT_IS_TOP_LEVEL)
+    if (NOT DEFINED CENTER_FILE_BUILD_TESTS)
+        set(CENTER_FILE_BUILD_TESTS OFF CACHE BOOL "Build test executables")
+    endif()
+    if (NOT DEFINED CENTER_FILE_BUILD_BENCHMARKS)
+        set(CENTER_FILE_BUILD_BENCHMARKS OFF CACHE BOOL "Build benchmark executables")
+    endif()
+endif()
+
 set(center_file_thread_center_available OFF)
 set(center_file_thread_center_include_dir "${CENTER_FILE_THREAD_CENTER_ROOT}/include")
 set(center_file_thread_center_taskflow_dir "${CENTER_FILE_THREAD_CENTER_ROOT}/taskflow-4.0.0")
