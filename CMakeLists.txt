@@ -6,12 +6,16 @@ include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
 option(CENTER_FILE_ENABLE_THREAD_CENTER "Enable ThreadCenter integration" ON)
+option(CENTER_FILE_REQUIRE_THREAD_CENTER "Fail configure if ThreadCenter is enabled but missing" OFF)
+option(CENTER_FILE_ENABLE_MEMORY_CENTER "Enable MemoryCenter include/define integration" OFF)
+option(CENTER_FILE_REQUIRE_MEMORY_CENTER "Fail configure if MemoryCenter is enabled but missing" OFF)
 option(CENTER_FILE_ENABLE_MODULES "Enable C++23 module interfaces for Center::File" ON)
 option(CENTER_FILE_BUILD_TESTS "Build test executables" ${PROJECT_IS_TOP_LEVEL})
 option(CENTER_FILE_BUILD_BENCHMARKS "Build benchmark executables" ${PROJECT_IS_TOP_LEVEL})
 option(CENTER_FILE_INSTALL "Enable install/export package config" ${PROJECT_IS_TOP_LEVEL})
 
 set(CENTER_FILE_THREAD_CENTER_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../ThreadCenter" CACHE PATH "Path to ThreadCenter project root")
+set(CENTER_FILE_MEMORY_CENTER_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../MemoryCenterNew" CACHE PATH "Path to MemoryCenter project root")
 
 # Subproject-friendly defaults:
 # - when consumed via add_subdirectory/FetchContent, tests & benchmarks stay OFF by default.
@@ -27,6 +31,9 @@ endif()
 set(center_file_thread_center_available OFF)
 set(center_file_thread_center_include_dir "${CENTER_FILE_THREAD_CENTER_ROOT}/include")
 set(center_file_thread_center_taskflow_dir "${CENTER_FILE_THREAD_CENTER_ROOT}/taskflow-4.0.0")
+
+set(center_file_memory_center_available OFF)
+set(center_file_memory_center_include_dir "${CENTER_FILE_MEMORY_CENTER_ROOT}/include")
 
 function(center_file_apply_common target_name)
     target_compile_features(${target_name} PUBLIC cxx_std_23)
@@ -47,17 +54,53 @@ function(center_file_apply_common target_name)
         )
     endif()
 
-    if (CENTER_FILE_ENABLE_THREAD_CENTER)
-        if (EXISTS "${center_file_thread_center_include_dir}/thread_center/thread_center.hpp")
-            target_include_directories(${target_name}
-                PUBLIC
-                    $<BUILD_INTERFACE:${center_file_thread_center_include_dir}>
-                    $<BUILD_INTERFACE:${center_file_thread_center_taskflow_dir}>
-            )
-            target_compile_definitions(${target_name} PUBLIC CENTER_FILE_HAS_THREAD_CENTER=1)
-        endif()
+    if (CENTER_FILE_ENABLE_THREAD_CENTER AND center_file_thread_center_available)
+        target_include_directories(${target_name}
+            PUBLIC
+                $<BUILD_INTERFACE:${center_file_thread_center_include_dir}>
+                $<BUILD_INTERFACE:${center_file_thread_center_taskflow_dir}>
+        )
+        target_compile_definitions(${target_name} PUBLIC CENTER_FILE_HAS_THREAD_CENTER=1)
+    endif()
+
+    if (CENTER_FILE_ENABLE_MEMORY_CENTER AND center_file_memory_center_available)
+        target_include_directories(${target_name}
+            PUBLIC
+                $<BUILD_INTERFACE:${center_file_memory_center_include_dir}>
+        )
+        target_compile_definitions(${target_name} PUBLIC CENTER_FILE_HAS_MEMORY_CENTER=1)
     endif()
 endfunction()
+
+if (CENTER_FILE_ENABLE_THREAD_CENTER)
+    if (EXISTS "${center_file_thread_center_include_dir}/thread_center/thread_center.hpp")
+        set(center_file_thread_center_available ON)
+        message(STATUS "CenterFile dependency: ThreadCenter FOUND at ${CENTER_FILE_THREAD_CENTER_ROOT}")
+    else()
+        if (CENTER_FILE_REQUIRE_THREAD_CENTER)
+            message(FATAL_ERROR "CenterFile dependency: ThreadCenter MISSING at ${CENTER_FILE_THREAD_CENTER_ROOT} (CENTER_FILE_REQUIRE_THREAD_CENTER=ON)")
+        else()
+            message(WARNING "CenterFile dependency: ThreadCenter MISSING at ${CENTER_FILE_THREAD_CENTER_ROOT}, integration disabled")
+        endif()
+    endif()
+else()
+    message(STATUS "CenterFile dependency: ThreadCenter integration OFF")
+endif()
+
+if (CENTER_FILE_ENABLE_MEMORY_CENTER)
+    if (EXISTS "${center_file_memory_center_include_dir}")
+        set(center_file_memory_center_available ON)
+        message(STATUS "CenterFile dependency: MemoryCenter FOUND at ${CENTER_FILE_MEMORY_CENTER_ROOT}")
+    else()
+        if (CENTER_FILE_REQUIRE_MEMORY_CENTER)
+            message(FATAL_ERROR "CenterFile dependency: MemoryCenter MISSING at ${CENTER_FILE_MEMORY_CENTER_ROOT} (CENTER_FILE_REQUIRE_MEMORY_CENTER=ON)")
+        else()
+            message(WARNING "CenterFile dependency: MemoryCenter MISSING at ${CENTER_FILE_MEMORY_CENTER_ROOT}, integration disabled")
+        endif()
+    endif()
+else()
+    message(STATUS "CenterFile dependency: MemoryCenter integration OFF (current code has no hard dependency)")
+endif()
 
 add_library(CenterFile STATIC
     src/PlatformFileWin32.cpp
@@ -65,15 +108,6 @@ add_library(CenterFile STATIC
 set_target_properties(CenterFile PROPERTIES EXPORT_NAME File)
 add_library(Center::File ALIAS CenterFile)
 center_file_apply_common(CenterFile)
-
-if (CENTER_FILE_ENABLE_THREAD_CENTER)
-    if (EXISTS "${center_file_thread_center_include_dir}/thread_center/thread_center.hpp")
-        set(center_file_thread_center_available ON)
-        message(STATUS "CenterFile: ThreadCenter enabled from ${CENTER_FILE_THREAD_CENTER_ROOT}")
-    else()
-        message(WARNING "CenterFile: ThreadCenter not found at ${CENTER_FILE_THREAD_CENTER_ROOT}, integration disabled")
-    endif()
-endif()
 
 set(center_file_modules_enabled OFF)
 set(center_file_module_files
