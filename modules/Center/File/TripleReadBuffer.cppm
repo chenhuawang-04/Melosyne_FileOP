@@ -10,12 +10,12 @@
 #include <span>
 #include <system_error>
 
-export module Center.File.TripleReadBuffer;
+export module Tool.File.TripleReadBuffer;
 
-import Center.File.Error;
-import Center.File.StreamTypes;
+import Tool.File.Error;
+import Tool.File.StreamTypes;
 
-export namespace Center::File {
+export namespace Tool::File {
 
 
 class TripleReadBuffer {
@@ -436,5 +436,6 @@ private:
     FileError error_value{};
 };
 
-} // namespace Center::File
+} // namespace Tool::File
+
 

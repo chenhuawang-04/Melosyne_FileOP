@@ -5,11 +5,11 @@
 #include <expected>
 #include <system_error>
 
-export module Center.File.Error;
+export module Tool.File.Error;
 
-import Center.File.Config;
+import Tool.File.Config;
 
-export namespace Center::File {
+export namespace Tool::File {
 
 enum class FileOperation : std::uint8_t {
     open,
@@ -52,4 +52,5 @@ using FileStatus = FileResult<void>;
     return "unknown";
 }
 
-} // namespace Center::File
+} // namespace Tool::File
+

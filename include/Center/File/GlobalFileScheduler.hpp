@@ -5,7 +5,7 @@
 #include <memory>
 #include <mutex>
 
-namespace Center::File {
+namespace Tool::File {
 
 class GlobalFileScheduler final {
 public:
@@ -63,4 +63,5 @@ private:
     }
 };
 
-} // namespace Center::File
+} // namespace Tool::File
+

@@ -40,8 +40,9 @@
     #define CENTER_FILE_HAS_THREAD_CENTER 0
 #endif
 
-namespace Center::File {
+namespace Tool::File {
 
 inline constexpr std::size_t max_io_chunk_bytes = 1u << 30;
 
-} // namespace Center::File
+} // namespace Tool::File
+

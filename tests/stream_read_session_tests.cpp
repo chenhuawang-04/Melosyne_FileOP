@@ -53,9 +53,9 @@ void testStreamReadAll(TestContext& context_, const std::filesystem::path& root_
     auto payload = makeBytes(2 * 1024 * 1024 + 123, 0x1234ABCDu);
     expectTrue(context_, writeBinaryFile(path, std::span<const std::byte>{payload.data(), payload.size()}), "生成 stream_payload.bin 应成功");
 
-    Center::File::StreamReadSession session{};
+    Tool::File::StreamReadSession session{};
 
-    Center::File::StreamReadConfig config{};
+    Tool::File::StreamReadConfig config{};
     config.chunk_bytes = 128 * 1024;
     config.prefetch_depth = 1;
 
@@ -109,8 +109,8 @@ void testRangeRead(TestContext& context_, const std::filesystem::path& root_) {
     constexpr std::uint64_t start_offset = 1024;
     constexpr std::uint64_t max_bytes = 70000;
 
-    Center::File::StreamReadSession session{};
-    Center::File::StreamReadConfig config{};
+    Tool::File::StreamReadSession session{};
+    Tool::File::StreamReadConfig config{};
     config.chunk_bytes = 32 * 1024;
 
     auto start_status = session.start(path, start_offset, max_bytes, config);
@@ -150,8 +150,8 @@ void testPauseResume(TestContext& context_, const std::filesystem::path& root_) 
     auto payload = makeBytes(128 * 1024, 0xA1B2C3D4u);
     expectTrue(context_, writeBinaryFile(path, std::span<const std::byte>{payload.data(), payload.size()}), "生成 stream_pause_payload.bin 应成功");
 
-    Center::File::StreamReadSession session{};
-    Center::File::StreamReadConfig config{};
+    Tool::File::StreamReadSession session{};
+    Tool::File::StreamReadConfig config{};
     config.chunk_bytes = 16 * 1024;
 
     auto start_status = session.start(path, 0, 0, config);
@@ -203,3 +203,4 @@ int main() {
 
     return context.failed_count == 0 ? 0 : 1;
 }
+

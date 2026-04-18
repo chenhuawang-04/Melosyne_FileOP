@@ -5,12 +5,12 @@
 #include <memory_resource>
 #include <span>
 
-export module Center.File.StreamTypes;
+export module Tool.File.StreamTypes;
 
-import Center.File.Error;
-import Center.File.SchedulingTypes;
+import Tool.File.Error;
+import Tool.File.SchedulingTypes;
 
-export namespace Center::File {
+export namespace Tool::File {
 
 struct StreamReadConfig {
     std::size_t chunk_bytes = 512 * 1024;
@@ -40,4 +40,5 @@ struct BufferView {
     bool end_of_stream = false;
 };
 
-} // namespace Center::File
+} // namespace Tool::File
+

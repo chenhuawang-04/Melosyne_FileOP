@@ -7,7 +7,7 @@
 #include <span>
 #include <type_traits>
 
-namespace Center::File {
+namespace Tool::File {
 
 using MutableBytes = std::span<std::byte>;
 using ConstBytes = std::span<const std::byte>;
@@ -70,4 +70,5 @@ struct OpenOptions {
     bool unbuffered = false;
 };
 
-} // namespace Center::File
+} // namespace Tool::File
+

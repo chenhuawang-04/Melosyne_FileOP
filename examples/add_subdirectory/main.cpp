@@ -8,9 +8,9 @@
 int main() {
     std::array<std::byte, 64> buffer{};
 
-    auto file_result = Center::File::PlatformFile::openRead("not_exists.bin");
+    auto file_result = Tool::File::PlatformFile::openRead("not_exists.bin");
     if (!file_result) {
-        std::cout << "Center::File linked successfully (open failure is expected in this demo).\n";
+        std::cout << "Tool::File linked successfully (open failure is expected in this demo).\n";
         return 0;
     }
 
@@ -24,3 +24,4 @@ int main() {
     std::cout << "read bytes=" << *read_result << "\n";
     return 0;
 }
+

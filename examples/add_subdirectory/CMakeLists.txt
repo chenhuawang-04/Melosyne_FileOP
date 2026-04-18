@@ -10,7 +10,8 @@ add_subdirectory(../../ FileOp_New)
 
 add_executable(add_subdir_example main.cpp)
 target_compile_features(add_subdir_example PRIVATE cxx_std_23)
-target_link_libraries(add_subdir_example PRIVATE Center::File)
+target_link_libraries(add_subdir_example PRIVATE Tool::File)
 
 # 如果希望使用模块目标：
-# target_link_libraries(add_subdir_example PRIVATE Center::FileModules)
+# target_link_libraries(add_subdir_example PRIVATE Tool::FileModules)
+

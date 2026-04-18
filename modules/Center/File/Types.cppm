@@ -5,11 +5,11 @@
 #include <span>
 #include <type_traits>
 
-export module Center.File.Types;
+export module Tool.File.Types;
 
-import Center.File.Config;
+import Tool.File.Config;
 
-export namespace Center::File {
+export namespace Tool::File {
 
 using MutableBytes = std::span<std::byte>;
 using ConstBytes = std::span<const std::byte>;
@@ -72,4 +72,5 @@ struct OpenOptions {
     bool unbuffered = false;
 };
 
-} // namespace Center::File
+} // namespace Tool::File
+

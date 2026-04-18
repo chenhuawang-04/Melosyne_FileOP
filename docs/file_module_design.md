@@ -185,7 +185,7 @@
 
 ```cpp
 std::vector<std::byte, Center::Memory::ContainerAllocator<std::byte>> data;
-auto result = Center::File::readFile(path, data);
+auto result = Tool::File::readFile(path, data);
 ```
 
 以及：
@@ -193,7 +193,7 @@ auto result = Center::File::readFile(path, data);
 ```cpp
 using StringAllocator = Center::Memory::CustomerAllocator<char, Center::Memory::Tags::Container>;
 std::basic_string<char, std::char_traits<char>, StringAllocator> text;
-auto result = Center::File::readFile(path, text);
+auto result = Tool::File::readFile(path, text);
 ```
 
 ### 6.3 对 traits 层的要求
@@ -675,3 +675,4 @@ FileOp_New/
 5. 补 POSIX 预留实现
 
 优先级最高的是第 1~3 步，因为这部分才能真正完成“给定任意容器或内存区域，自动识别类型并读入/写出”的目标。
+

@@ -2,10 +2,11 @@
 
 #include <cstddef>
 
-export module Center.File.Config;
+export module Tool.File.Config;
 
-export namespace Center::File {
+export namespace Tool::File {
 
 inline constexpr std::size_t max_io_chunk_bytes = 1u << 30;
 
-} // namespace Center::File
+} // namespace Tool::File
+

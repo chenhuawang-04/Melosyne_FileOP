@@ -10,7 +10,7 @@
 #include <filesystem>
 #include <span>
 
-namespace Center::File {
+namespace Tool::File {
 
 class StreamReadSession {
 public:
@@ -185,4 +185,5 @@ private:
     std::atomic<bool> end_of_stream{true};
 };
 
-} // namespace Center::File
+} // namespace Tool::File
+

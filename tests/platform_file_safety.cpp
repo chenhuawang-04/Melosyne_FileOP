@@ -52,10 +52,10 @@ bool writeBinaryFile(const std::filesystem::path& path_, std::span<const std::by
 
 void testOpenMissingFile(TestContext& context_, const std::filesystem::path& root_) {
     const auto path = root_ / "missing.bin";
-    auto result = Center::File::PlatformFile::openRead(path);
+    auto result = Tool::File::PlatformFile::openRead(path);
     expectTrue(context_, !result, "openRead 缺失文件应失败");
     if (!result) {
-        expectTrue(context_, result.error().operation == Center::File::FileOperation::open, "缺失文件错误操作类型应为 open");
+        expectTrue(context_, result.error().operation == Tool::File::FileOperation::open, "缺失文件错误操作类型应为 open");
     }
 }
 
@@ -63,7 +63,7 @@ void testRoundTripReadWrite(TestContext& context_, const std::filesystem::path& 
     const auto path = root_ / "roundtrip.bin";
     const auto original_bytes = makeBytes(64 * 1024, 0x13572468u);
 
-    auto open_write_result = Center::File::PlatformFile::openWrite(path, true);
+    auto open_write_result = Tool::File::PlatformFile::openWrite(path, true);
     expectTrue(context_, static_cast<bool>(open_write_result), "openWrite 应成功创建 roundtrip 文件");
     if (!open_write_result) {
         return;
@@ -77,7 +77,7 @@ void testRoundTripReadWrite(TestContext& context_, const std::filesystem::path& 
     auto close_status = file.close();
     expectTrue(context_, static_cast<bool>(close_status), "close 应成功");
 
-    auto open_read_result = Center::File::PlatformFile::openRead(path);
+    auto open_read_result = Tool::File::PlatformFile::openRead(path);
     expectTrue(context_, static_cast<bool>(open_read_result), "openRead 应成功打开 roundtrip 文件");
     if (!open_read_result) {
         return;
@@ -101,7 +101,7 @@ void testReadExactPastEof(TestContext& context_, const std::filesystem::path& ro
     const auto bytes = makeBytes(1024, 0x24681357u);
     expectTrue(context_, writeBinaryFile(path, std::span<const std::byte>{bytes.data(), bytes.size()}), "生成 short_read 测试文件应成功");
 
-    auto open_result = Center::File::PlatformFile::openRead(path);
+    auto open_result = Tool::File::PlatformFile::openRead(path);
     expectTrue(context_, static_cast<bool>(open_result), "openRead short_read 文件应成功");
     if (!open_result) {
         return;
@@ -118,7 +118,7 @@ void testReadExactPastEof(TestContext& context_, const std::filesystem::path& ro
 
 void testResizeAndSize(TestContext& context_, const std::filesystem::path& root_) {
     const auto path = root_ / "resize.bin";
-    auto open_result = Center::File::PlatformFile::openReadWrite(path, Center::File::FileCreation::createAlways);
+    auto open_result = Tool::File::PlatformFile::openReadWrite(path, Tool::File::FileCreation::createAlways);
     expectTrue(context_, static_cast<bool>(open_result), "openReadWrite createAlways 应成功");
     if (!open_result) {
         return;
@@ -149,7 +149,7 @@ void testMoveSemantics(TestContext& context_, const std::filesystem::path& root_
     const auto bytes = makeBytes(4096, 0xABCDEF01u);
     expectTrue(context_, writeBinaryFile(path, std::span<const std::byte>{bytes.data(), bytes.size()}), "生成 move_semantics 文件应成功");
 
-    auto open_result = Center::File::PlatformFile::openRead(path);
+    auto open_result = Tool::File::PlatformFile::openRead(path);
     expectTrue(context_, static_cast<bool>(open_result), "openRead move_semantics 文件应成功");
     if (!open_result) {
         return;
@@ -158,7 +158,7 @@ void testMoveSemantics(TestContext& context_, const std::filesystem::path& root_
     auto file_a = std::move(*open_result);
     expectTrue(context_, file_a.isOpen(), "move 前 file_a 应保持打开");
 
-    Center::File::PlatformFile file_b = std::move(file_a);
+    Tool::File::PlatformFile file_b = std::move(file_a);
     expectTrue(context_, !file_a.isOpen(), "move construct 后 file_a 应为空");
     expectTrue(context_, file_b.isOpen(), "move construct 后 file_b 应打开");
 
@@ -167,7 +167,7 @@ void testMoveSemantics(TestContext& context_, const std::filesystem::path& root_
     expectTrue(context_, static_cast<bool>(read_status), "move construct 后 file_b 应可读");
     expectTrue(context_, read_bytes == bytes, "move construct 后读取结果应正确");
 
-    Center::File::PlatformFile file_c;
+    Tool::File::PlatformFile file_c;
     file_c = std::move(file_b);
     expectTrue(context_, !file_b.isOpen(), "move assign 后 file_b 应为空");
     expectTrue(context_, file_c.isOpen(), "move assign 后 file_c 应打开");
@@ -175,7 +175,7 @@ void testMoveSemantics(TestContext& context_, const std::filesystem::path& root_
 
 void testEmptyReadWrite(TestContext& context_, const std::filesystem::path& root_) {
     const auto path = root_ / "empty.bin";
-    auto open_write_result = Center::File::PlatformFile::openWrite(path, true);
+    auto open_write_result = Tool::File::PlatformFile::openWrite(path, true);
     expectTrue(context_, static_cast<bool>(open_write_result), "openWrite empty 文件应成功");
     if (!open_write_result) {
         return;
@@ -191,7 +191,7 @@ void testEmptyReadWrite(TestContext& context_, const std::filesystem::path& root
     auto close_status = open_write_result->close();
     expectTrue(context_, static_cast<bool>(close_status), "empty 文件 close 应成功");
 
-    auto open_read_result = Center::File::PlatformFile::openRead(path);
+    auto open_read_result = Tool::File::PlatformFile::openRead(path);
     expectTrue(context_, static_cast<bool>(open_read_result), "openRead empty 文件应成功");
     if (!open_read_result) {
         return;
@@ -209,7 +209,7 @@ void testClosedHandleErrors(TestContext& context_, const std::filesystem::path& 
     const auto bytes = makeBytes(128, 0x10203040u);
     expectTrue(context_, writeBinaryFile(path, std::span<const std::byte>{bytes.data(), bytes.size()}), "生成 closed_handle 文件应成功");
 
-    auto open_result = Center::File::PlatformFile::openRead(path);
+    auto open_result = Tool::File::PlatformFile::openRead(path);
     expectTrue(context_, static_cast<bool>(open_result), "openRead closed_handle 文件应成功");
     if (!open_result) {
         return;
@@ -223,7 +223,7 @@ void testClosedHandleErrors(TestContext& context_, const std::filesystem::path& 
     auto read_status = file.readExactAt(0, std::span<std::byte>{destination.data(), destination.size()});
     expectTrue(context_, !read_status, "已关闭句柄的 readExactAt 应失败");
     if (!read_status) {
-        expectTrue(context_, read_status.error().operation == Center::File::FileOperation::read, "已关闭句柄 read 错误类型应为 read");
+        expectTrue(context_, read_status.error().operation == Tool::File::FileOperation::read, "已关闭句柄 read 错误类型应为 read");
     }
 }
 
@@ -255,3 +255,4 @@ int main() {
 
     return context.failed_count == 0 ? 0 : 1;
 }
+

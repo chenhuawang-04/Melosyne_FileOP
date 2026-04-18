@@ -65,7 +65,7 @@ BenchResult benchDirectChunked(const std::filesystem::path& path_, std::size_t f
     double total_seconds = 0.0;
 
     for (int iter = 0; iter < iterations_; ++iter) {
-        auto open_result = Center::File::PlatformFile::openRead(path_, Center::File::FileHint::sequential, Center::File::FileShare::read);
+        auto open_result = Tool::File::PlatformFile::openRead(path_, Tool::File::FileHint::sequential, Tool::File::FileShare::read);
         if (!open_result) {
             std::cerr << "benchDirectChunked open failed\n";
             break;
@@ -118,8 +118,8 @@ BenchResult benchStreamSession(const std::filesystem::path& path_, std::size_t f
     double total_seconds = 0.0;
 
     for (int iter = 0; iter < iterations_; ++iter) {
-        Center::File::StreamReadSession session{};
-        Center::File::StreamReadConfig config{};
+        Tool::File::StreamReadSession session{};
+        Tool::File::StreamReadConfig config{};
         config.chunk_bytes = chunk_size_;
 
         auto start_status = session.start(path_, 0, 0, config);
@@ -165,8 +165,8 @@ BenchResult benchStreamSessionAsync(const std::filesystem::path& path_, std::siz
     double total_seconds = 0.0;
 
     for (int iter = 0; iter < iterations_; ++iter) {
-        Center::File::StreamReadSessionAsync session{};
-        Center::File::StreamReadConfig config{};
+        Tool::File::StreamReadSessionAsync session{};
+        Tool::File::StreamReadConfig config{};
         config.chunk_bytes = chunk_size_;
 
         auto start_status = session.start(path_, 0, 0, config);
@@ -259,3 +259,4 @@ int main() {
 
     return 0;
 }
+

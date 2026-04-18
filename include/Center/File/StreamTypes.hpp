@@ -9,7 +9,7 @@
 #include <memory_resource>
 #include <span>
 
-namespace Center::File {
+namespace Tool::File {
 
 struct StreamReadConfig {
     std::size_t chunk_bytes = 512 * 1024;
@@ -39,4 +39,5 @@ struct BufferView {
     bool end_of_stream = false;
 };
 
-} // namespace Center::File
+} // namespace Tool::File
+

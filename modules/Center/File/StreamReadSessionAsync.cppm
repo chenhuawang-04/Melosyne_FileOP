@@ -15,14 +15,14 @@
 #include <thread>
 #include <system_error>
 
-export module Center.File.StreamReadSessionAsync;
+export module Tool.File.StreamReadSessionAsync;
 
-import Center.File.PlatformFile;
-import Center.File.StreamTypes;
-import Center.File.Types;
-import Center.File.Error;
+import Tool.File.PlatformFile;
+import Tool.File.StreamTypes;
+import Tool.File.Types;
+import Tool.File.Error;
 
-export namespace Center::File {
+export namespace Tool::File {
 
 
 class StreamReadSessionAsync {
@@ -520,5 +520,6 @@ private:
     std::atomic<bool> started{false};
 };
 
-} // namespace Center::File
+} // namespace Tool::File
+
 

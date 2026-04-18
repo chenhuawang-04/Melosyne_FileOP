@@ -1,4 +1,4 @@
-module;
+﻿module;
 
 #if defined(CENTER_FILE_WINDOWS)
     #ifndef WIN32_LEAN_AND_MEAN
@@ -19,17 +19,17 @@ module;
 #include <system_error>
 #include <vector>
 
-export module Center.File.FileReadScheduler;
+export module Tool.File.FileReadScheduler;
 
-import Center.File.FileReadPlanner;
-import Center.File.PlatformFile;
-import Center.File.ReadHandlePool;
-import Center.File.ThreadCenterAdapter;
-import Center.File.Types;
-import Center.File.Error;
-import Center.File.SchedulingTypes;
+import Tool.File.FileReadPlanner;
+import Tool.File.PlatformFile;
+import Tool.File.ReadHandlePool;
+import Tool.File.ThreadCenterAdapter;
+import Tool.File.Types;
+import Tool.File.Error;
+import Tool.File.SchedulingTypes;
 
-export namespace Center::File {
+export namespace Tool::File {
 
 
 struct ReadView {
@@ -492,4 +492,5 @@ private:
     ReadHandlePool read_handle_pool_{};
 };
 
-} // namespace Center::File
+} // namespace Tool::File
+

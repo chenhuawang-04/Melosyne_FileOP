@@ -85,7 +85,7 @@ cd build
 #include <array>
 
 std::array<std::byte, 4096> buffer{};
-auto file_result = Center::File::PlatformFile::openRead("assets/data.bin");
+auto file_result = Tool::File::PlatformFile::openRead("assets/data.bin");
 if (!file_result) {
     // 处理 file_result.error()
     return;
@@ -106,8 +106,8 @@ if (!read_result) {
 #include "Center/File/FileOp.hpp"
 #include <array>
 
-Center::File::StreamReadSession session{};
-Center::File::StreamReadConfig config{};
+Tool::File::StreamReadSession session{};
+Tool::File::StreamReadConfig config{};
 config.chunk_bytes = 256 * 1024;
 
 auto start_status = session.start("assets/stream.bin", 0, 0, config);
@@ -136,8 +136,8 @@ session.stop();
 #include "Center/File/FileOp.hpp"
 #include <array>
 
-Center::File::StreamReadSessionAsync session{};
-Center::File::StreamReadConfig config{};
+Tool::File::StreamReadSessionAsync session{};
+Tool::File::StreamReadConfig config{};
 config.chunk_bytes = 256 * 1024;
 
 auto start_status = session.start("assets/stream.bin", 0, 0, config);
@@ -261,21 +261,21 @@ CMake 选项：
 本仓库已提供与 `include/Center/File` 对称的模块接口单元：
 
 - 路径：`modules/Center/File/*.cppm`
-- 聚合入口：`Center.File.FileOp`（文件：`modules/Center/File/FileOp.cppm`）
+- 聚合入口：`Tool.File.FileOp`（文件：`modules/Center/File/FileOp.cppm`）
 
 示例：
 
 ```cpp
-import Center.File.FileOp;
+import Tool.File.FileOp;
 
-using namespace Center::File;
+using namespace Tool::File;
 ```
 
 说明：
 
 - 这些 `.cppm` 为真实模块接口实现，不是头文件包装。
 - 宏定义传播仍建议沿用 `include/Center/File/Config.hpp`（宏定义天然不通过 module export 传播）。
-- 当 CMake >= 3.28 且 `CENTER_FILE_ENABLE_MODULES=ON` 时，会启用 `Center::FileModules` 目标。
+- 当 CMake >= 3.28 且 `CENTER_FILE_ENABLE_MODULES=ON` 时，会启用 `Tool::FileModules` 目标。
 - 当 CMake < 3.28 时，会保留模块源码文件但不作为 `CXX_MODULES` 编译（兼容现有构建环境）。
 
 ## 12. 便捷接入任意项目（推荐）
@@ -290,9 +290,9 @@ set(CENTER_FILE_ENABLE_MODULES ON CACHE BOOL "" FORCE)
 
 add_subdirectory(external/FileOp_New)
 
-target_link_libraries(MyGame PRIVATE Center::File)
+target_link_libraries(MyGame PRIVATE Tool::File)
 # 如果要用 module 入口：
-# target_link_libraries(MyGame PRIVATE Center::FileModules)
+# target_link_libraries(MyGame PRIVATE Tool::FileModules)
 ```
 
 ### 12.2 方式 B：安装后 `find_package`
@@ -309,9 +309,9 @@ cmake --install build --prefix <install-prefix>
 
 ```cmake
 find_package(CenterFile CONFIG REQUIRED)
-target_link_libraries(MyGame PRIVATE Center::File)
+target_link_libraries(MyGame PRIVATE Tool::File)
 # 如需模块目标：
-# target_link_libraries(MyGame PRIVATE Center::FileModules)
+# target_link_libraries(MyGame PRIVATE Tool::FileModules)
 ```
 
 ### 12.3 关键 CMake 选项
@@ -327,3 +327,4 @@ target_link_libraries(MyGame PRIVATE Center::File)
 
 - CMake ????????? ThreadCenter / MemoryCenter ??????
 - ??? `REQUIRE` ??? `ON` ???????? `FATAL_ERROR` ?????
+

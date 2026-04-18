@@ -26,7 +26,7 @@ void expectTrue(TestContext& context_, bool condition_, const std::string& messa
 }
 
 void testRoundTrip(TestContext& context_) {
-    Center::File::TripleReadBuffer buffer{};
+    Tool::File::TripleReadBuffer buffer{};
     auto init_status = buffer.initialize(256, nullptr);
     expectTrue(context_, static_cast<bool>(init_status), "initialize 应成功");
     if (!init_status) {
@@ -75,7 +75,7 @@ void testRoundTrip(TestContext& context_) {
 }
 
 void testStopWakeup(TestContext& context_) {
-    Center::File::TripleReadBuffer buffer{};
+    Tool::File::TripleReadBuffer buffer{};
     auto init_status = buffer.initialize(128, nullptr);
     expectTrue(context_, static_cast<bool>(init_status), "stop 测试 initialize 应成功");
     if (!init_status) {
@@ -91,15 +91,15 @@ void testStopWakeup(TestContext& context_) {
 }
 
 void testErrorPropagation(TestContext& context_) {
-    Center::File::TripleReadBuffer buffer{};
+    Tool::File::TripleReadBuffer buffer{};
     auto init_status = buffer.initialize(128, nullptr);
     expectTrue(context_, static_cast<bool>(init_status), "error 测试 initialize 应成功");
     if (!init_status) {
         return;
     }
 
-    buffer.publishError(Center::File::FileError{
-        .operation = Center::File::FileOperation::read,
+    buffer.publishError(Tool::File::FileError{
+        .operation = Tool::File::FileOperation::read,
         .code = std::make_error_code(std::errc::io_error)
     });
 
@@ -124,3 +124,4 @@ int main() {
 
     return context.failed_count == 0 ? 0 : 1;
 }
+

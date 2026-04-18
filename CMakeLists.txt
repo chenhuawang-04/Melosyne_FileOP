@@ -9,7 +9,7 @@ option(CENTER_FILE_ENABLE_THREAD_CENTER "Enable ThreadCenter integration" ON)
 option(CENTER_FILE_REQUIRE_THREAD_CENTER "Fail configure if ThreadCenter is enabled but missing" OFF)
 option(CENTER_FILE_ENABLE_MEMORY_CENTER "Enable MemoryCenter include/define integration" OFF)
 option(CENTER_FILE_REQUIRE_MEMORY_CENTER "Fail configure if MemoryCenter is enabled but missing" OFF)
-option(CENTER_FILE_ENABLE_MODULES "Enable C++23 module interfaces for Center::File" ON)
+option(CENTER_FILE_ENABLE_MODULES "Enable C++23 module interfaces for Tool::File" ON)
 option(CENTER_FILE_BUILD_TESTS "Build test executables" ${PROJECT_IS_TOP_LEVEL})
 option(CENTER_FILE_BUILD_BENCHMARKS "Build benchmark executables" ${PROJECT_IS_TOP_LEVEL})
 option(CENTER_FILE_INSTALL "Enable install/export package config" ${PROJECT_IS_TOP_LEVEL})
@@ -80,29 +80,74 @@ function(center_file_resolve_dependency_root dependency_dir_name configured_root
     endif()
 endfunction()
 
+# -----------------------------------------------------------------------------
+# Dependency detection: target-first, path-second.
+# In parent builds, prefer already-defined CMake targets.
+# In standalone builds, fallback to workspace/path probing.
+# -----------------------------------------------------------------------------
 set(center_file_thread_center_available OFF)
+set(center_file_thread_center_target "")
+set(center_file_thread_center_include_dir "")
+set(center_file_thread_center_taskflow_dir "")
+
+if (TARGET ThreadCenter::ThreadCenterModules)
+    set(center_file_thread_center_target ThreadCenter::ThreadCenterModules)
+    set(center_file_thread_center_available ON)
+elseif (TARGET ThreadCenter::ThreadCenter)
+    set(center_file_thread_center_target ThreadCenter::ThreadCenter)
+    set(center_file_thread_center_available ON)
+elseif (TARGET ThreadCenterModules)
+    set(center_file_thread_center_target ThreadCenterModules)
+    set(center_file_thread_center_available ON)
+elseif (TARGET ThreadCenter)
+    set(center_file_thread_center_target ThreadCenter)
+    set(center_file_thread_center_available ON)
+endif()
+
+set(center_file_thread_center_root_resolved "")
+if (NOT center_file_thread_center_available)
+    center_file_resolve_dependency_root(
+        "ThreadCenter"
+        "${CENTER_FILE_THREAD_CENTER_ROOT}"
+        "${CENTER_FILE_WORKSPACE_ROOT}"
+        "include/thread_center/thread_center.hpp"
+        center_file_thread_center_root_resolved
+        center_file_thread_center_available
+    )
+
+    if (center_file_thread_center_available)
+        set(center_file_thread_center_include_dir "${center_file_thread_center_root_resolved}/include")
+        set(center_file_thread_center_taskflow_dir "${center_file_thread_center_root_resolved}/taskflow-4.0.0")
+    endif()
+endif()
+
 set(center_file_memory_center_available OFF)
+set(center_file_memory_center_target "")
+set(center_file_memory_center_include_dir "")
 
-center_file_resolve_dependency_root(
-    "ThreadCenter"
-    "${CENTER_FILE_THREAD_CENTER_ROOT}"
-    "${CENTER_FILE_WORKSPACE_ROOT}"
-    "include/thread_center/thread_center.hpp"
-    center_file_thread_center_root_resolved
-    center_file_thread_center_available
-)
-set(center_file_thread_center_include_dir "${center_file_thread_center_root_resolved}/include")
-set(center_file_thread_center_taskflow_dir "${center_file_thread_center_root_resolved}/taskflow-4.0.0")
+if (TARGET mcenter::mcenter)
+    set(center_file_memory_center_target mcenter::mcenter)
+    set(center_file_memory_center_available ON)
+elseif (TARGET mcenter)
+    set(center_file_memory_center_target mcenter)
+    set(center_file_memory_center_available ON)
+endif()
 
-center_file_resolve_dependency_root(
-    "MemoryCenterNew"
-    "${CENTER_FILE_MEMORY_CENTER_ROOT}"
-    "${CENTER_FILE_WORKSPACE_ROOT}"
-    "include/Center/Memory/MemoryCenter.hpp"
-    center_file_memory_center_root_resolved
-    center_file_memory_center_available
-)
-set(center_file_memory_center_include_dir "${center_file_memory_center_root_resolved}/include")
+set(center_file_memory_center_root_resolved "")
+if (NOT center_file_memory_center_available)
+    center_file_resolve_dependency_root(
+        "MemoryCenterNew"
+        "${CENTER_FILE_MEMORY_CENTER_ROOT}"
+        "${CENTER_FILE_WORKSPACE_ROOT}"
+        "include/Center/Memory/MemoryCenter.hpp"
+        center_file_memory_center_root_resolved
+        center_file_memory_center_available
+    )
+
+    if (center_file_memory_center_available)
+        set(center_file_memory_center_include_dir "${center_file_memory_center_root_resolved}/include")
+    endif()
+endif()
 
 function(center_file_apply_common target_name)
     target_compile_features(${target_name} PUBLIC cxx_std_23)
@@ -124,26 +169,38 @@ function(center_file_apply_common target_name)
     endif()
 
     if (CENTER_FILE_ENABLE_THREAD_CENTER AND center_file_thread_center_available)
-        target_include_directories(${target_name}
-            PUBLIC
-                $<BUILD_INTERFACE:${center_file_thread_center_include_dir}>
-                $<BUILD_INTERFACE:${center_file_thread_center_taskflow_dir}>
-        )
+        if (center_file_thread_center_target)
+            target_link_libraries(${target_name} PUBLIC ${center_file_thread_center_target})
+        else()
+            target_include_directories(${target_name}
+                PUBLIC
+                    $<BUILD_INTERFACE:${center_file_thread_center_include_dir}>
+                    $<BUILD_INTERFACE:${center_file_thread_center_taskflow_dir}>
+            )
+        endif()
         target_compile_definitions(${target_name} PUBLIC CENTER_FILE_HAS_THREAD_CENTER=1)
     endif()
 
     if (CENTER_FILE_ENABLE_MEMORY_CENTER AND center_file_memory_center_available)
-        target_include_directories(${target_name}
-            PUBLIC
-                $<BUILD_INTERFACE:${center_file_memory_center_include_dir}>
-        )
+        if (center_file_memory_center_target)
+            target_link_libraries(${target_name} PUBLIC ${center_file_memory_center_target})
+        else()
+            target_include_directories(${target_name}
+                PUBLIC
+                    $<BUILD_INTERFACE:${center_file_memory_center_include_dir}>
+            )
+        endif()
         target_compile_definitions(${target_name} PUBLIC CENTER_FILE_HAS_MEMORY_CENTER=1)
     endif()
 endfunction()
 
 if (CENTER_FILE_ENABLE_THREAD_CENTER)
     if (center_file_thread_center_available)
-        message(STATUS "CenterFile dependency: ThreadCenter FOUND at ${center_file_thread_center_root_resolved}")
+        if (center_file_thread_center_target)
+            message(STATUS "CenterFile dependency: ThreadCenter FOUND via target '${center_file_thread_center_target}'")
+        else()
+            message(STATUS "CenterFile dependency: ThreadCenter FOUND at ${center_file_thread_center_root_resolved}")
+        endif()
     else()
         if (CENTER_FILE_REQUIRE_THREAD_CENTER)
             message(FATAL_ERROR "CenterFile dependency: ThreadCenter MISSING. configured='${CENTER_FILE_THREAD_CENTER_ROOT}', workspace='${CENTER_FILE_WORKSPACE_ROOT}' (CENTER_FILE_REQUIRE_THREAD_CENTER=ON)")
@@ -157,7 +214,11 @@ endif()
 
 if (CENTER_FILE_ENABLE_MEMORY_CENTER)
     if (center_file_memory_center_available)
-        message(STATUS "CenterFile dependency: MemoryCenter FOUND at ${center_file_memory_center_root_resolved}")
+        if (center_file_memory_center_target)
+            message(STATUS "CenterFile dependency: MemoryCenter FOUND via target '${center_file_memory_center_target}'")
+        else()
+            message(STATUS "CenterFile dependency: MemoryCenter FOUND at ${center_file_memory_center_root_resolved}")
+        endif()
     else()
         if (CENTER_FILE_REQUIRE_MEMORY_CENTER)
             message(FATAL_ERROR "CenterFile dependency: MemoryCenter MISSING. configured='${CENTER_FILE_MEMORY_CENTER_ROOT}', workspace='${CENTER_FILE_WORKSPACE_ROOT}' (CENTER_FILE_REQUIRE_MEMORY_CENTER=ON)")
@@ -173,7 +234,7 @@ add_library(CenterFile STATIC
     src/PlatformFileWin32.cpp
 )
 set_target_properties(CenterFile PROPERTIES EXPORT_NAME File)
-add_library(Center::File ALIAS CenterFile)
+add_library(Tool::File ALIAS CenterFile)
 center_file_apply_common(CenterFile)
 
 set(center_file_modules_enabled OFF)
@@ -203,7 +264,7 @@ if (CENTER_FILE_ENABLE_MODULES)
             modules/Center/File/module_anchor.cpp
         )
         set_target_properties(CenterFileModules PROPERTIES EXPORT_NAME FileModules)
-        add_library(Center::FileModules ALIAS CenterFileModules)
+        add_library(Tool::FileModules ALIAS CenterFileModules)
 
         target_sources(CenterFileModules
             PUBLIC
@@ -212,16 +273,16 @@ if (CENTER_FILE_ENABLE_MODULES)
         )
 
         center_file_apply_common(CenterFileModules)
-        target_link_libraries(CenterFileModules PUBLIC Center::File)
+        target_link_libraries(CenterFileModules PUBLIC Tool::File)
 
         set(center_file_modules_enabled ON)
-        message(STATUS "CenterFile modules: CXX_MODULES target enabled (Center::FileModules)")
+        message(STATUS "CenterFile modules: CXX_MODULES target enabled (Tool::FileModules)")
     endif()
 endif()
 
 function(center_file_add_executable target_name source_file)
     add_executable(${target_name} ${source_file})
-    target_link_libraries(${target_name} PRIVATE Center::File)
+    target_link_libraries(${target_name} PRIVATE Tool::File)
     target_compile_features(${target_name} PRIVATE cxx_std_23)
 endfunction()
 
@@ -275,7 +336,7 @@ if (CENTER_FILE_INSTALL)
 
     install(EXPORT CenterFileTargets
         FILE CenterFileTargets.cmake
-        NAMESPACE Center::
+        NAMESPACE Tool::
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/CenterFile
     )
 
@@ -285,3 +346,5 @@ if (CENTER_FILE_INSTALL)
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/CenterFile
     )
 endif()
+
+

@@ -50,7 +50,7 @@ bool writeBinaryFile(const std::filesystem::path& path_, std::span<const std::by
 }
 
 void testInitializeAndShutdown(TestContext& context_) {
-    using namespace Center::File;
+    using namespace Tool::File;
 
     GlobalFileScheduler::shutdown();
     expectTrue(context_, !GlobalFileScheduler::isInitialized(), "shutdown 后应为未初始化状态");
@@ -76,7 +76,7 @@ void testInitializeAndShutdown(TestContext& context_) {
 }
 
 void testRunRequestThroughGlobalScheduler(TestContext& context_, const std::filesystem::path& root_) {
-    using namespace Center::File;
+    using namespace Tool::File;
 
     const auto payload = makeBytes(64 * 1024, 0x89ABCDEFu);
     const auto path = root_ / "global_scheduler.bin";
@@ -132,3 +132,4 @@ int main() {
 
     return context.failed_count == 0 ? 0 : 1;
 }
+

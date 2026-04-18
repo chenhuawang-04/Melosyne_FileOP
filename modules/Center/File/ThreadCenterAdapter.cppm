@@ -12,12 +12,12 @@
     #include <thread_center/thread_center.hpp>
 #endif
 
-export module Center.File.ThreadCenterAdapter;
+export module Tool.File.ThreadCenterAdapter;
 
-import Center.File.Error;
-import Center.File.SchedulingTypes;
+import Tool.File.Error;
+import Tool.File.SchedulingTypes;
 
-export namespace Center::File {
+export namespace Tool::File {
 
 using PlannedTaskExecutor = std::function<FileStatus(const PlannedReadTask& task_)>;
 
@@ -130,5 +130,6 @@ public:
 
 #endif
 
-} // namespace Center::File
+} // namespace Tool::File
+
 

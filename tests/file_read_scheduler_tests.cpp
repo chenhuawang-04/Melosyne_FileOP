@@ -56,21 +56,21 @@ void testSchedulerDirect(TestContext& context_, const std::filesystem::path& roo
 
     std::vector<std::byte> destination(original.size());
 
-    Center::File::PlannerConfig config{};
+    Tool::File::PlannerConfig config{};
     config.worker_limit = 6;
     config.storage.large_file_threshold = 2 * 1024 * 1024;
     config.storage.split_chunk_bytes = 1 * 1024 * 1024;
 
-    Center::File::FileReadScheduler scheduler{config};
+    Tool::File::FileReadScheduler scheduler{config};
 
-    std::vector<Center::File::ReadRequest> requests;
-    requests.push_back(Center::File::ReadRequest{
+    std::vector<Tool::File::ReadRequest> requests;
+    requests.push_back(Tool::File::ReadRequest{
         .path = path,
         .offset = 0,
         .size_bytes = static_cast<std::uint64_t>(destination.size()),
         .destination = destination.data(),
         .destination_capacity = destination.size(),
-        .urgency = Center::File::ReadUrgency::frameCritical,
+        .urgency = Tool::File::ReadUrgency::frameCritical,
         .allow_split = true,
         .allow_mapped_copy = false,
         .allow_mapped_view = false,
@@ -93,22 +93,22 @@ void testSchedulerMappedCopy(TestContext& context_, const std::filesystem::path&
 
     std::vector<std::byte> destination(original.size());
 
-    Center::File::PlannerConfig config{};
+    Tool::File::PlannerConfig config{};
     config.worker_limit = 4;
     config.storage.medium_file_threshold = 1 * 1024 * 1024;
     config.storage.large_file_threshold = 3 * 1024 * 1024;
     config.storage.split_chunk_bytes = 2 * 1024 * 1024;
 
-    Center::File::FileReadScheduler scheduler{config};
+    Tool::File::FileReadScheduler scheduler{config};
 
-    std::vector<Center::File::ReadRequest> requests;
-    requests.push_back(Center::File::ReadRequest{
+    std::vector<Tool::File::ReadRequest> requests;
+    requests.push_back(Tool::File::ReadRequest{
         .path = path,
         .offset = 0,
         .size_bytes = static_cast<std::uint64_t>(destination.size()),
         .destination = destination.data(),
         .destination_capacity = destination.size(),
-        .urgency = Center::File::ReadUrgency::streaming,
+        .urgency = Tool::File::ReadUrgency::streaming,
         .allow_split = true,
         .allow_mapped_copy = true,
         .allow_mapped_view = false,
@@ -125,23 +125,23 @@ void testSchedulerMappedCopy(TestContext& context_, const std::filesystem::path&
 }
 
 void testPlannerSplitAndLane(TestContext& context_) {
-    Center::File::PlannerConfig config{};
+    Tool::File::PlannerConfig config{};
     config.storage.large_file_threshold = 4 * 1024 * 1024;
     config.storage.split_chunk_bytes = 2 * 1024 * 1024;
     config.storage.enable_range_merge = false;
 
-    Center::File::FileReadPlanner planner{config};
+    Tool::File::FileReadPlanner planner{config};
 
     std::vector<std::byte> target(8 * 1024 * 1024);
 
-    std::vector<Center::File::ReadRequest> requests;
-    requests.push_back(Center::File::ReadRequest{
+    std::vector<Tool::File::ReadRequest> requests;
+    requests.push_back(Tool::File::ReadRequest{
         .path = "dummy.bin",
         .offset = 0,
         .size_bytes = static_cast<std::uint64_t>(target.size()),
         .destination = target.data(),
         .destination_capacity = target.size(),
-        .urgency = Center::File::ReadUrgency::frameCritical,
+        .urgency = Tool::File::ReadUrgency::frameCritical,
         .allow_split = true,
         .allow_mapped_copy = false,
         .allow_mapped_view = false,
@@ -157,26 +157,26 @@ void testPlannerSplitAndLane(TestContext& context_) {
 }
 
 void testPlannerRangeMerge(TestContext& context_) {
-    Center::File::PlannerConfig config{};
+    Tool::File::PlannerConfig config{};
     config.storage.enable_range_merge = true;
     config.storage.merge_gap_bytes = 4 * 1024;
     config.storage.merge_max_bytes = 256 * 1024;
     config.storage.large_file_threshold = 1 * 1024 * 1024;
     config.storage.split_chunk_bytes = 2 * 1024 * 1024;
 
-    Center::File::FileReadPlanner planner{config};
+    Tool::File::FileReadPlanner planner{config};
 
     std::vector<std::byte> buffer_a(64 * 1024);
     std::vector<std::byte> buffer_b(64 * 1024);
 
-    std::vector<Center::File::ReadRequest> requests;
-    requests.push_back(Center::File::ReadRequest{
+    std::vector<Tool::File::ReadRequest> requests;
+    requests.push_back(Tool::File::ReadRequest{
         .path = "merge.bin",
         .offset = 0,
         .size_bytes = static_cast<std::uint64_t>(buffer_a.size()),
         .destination = buffer_a.data(),
         .destination_capacity = buffer_a.size(),
-        .urgency = Center::File::ReadUrgency::streaming,
+        .urgency = Tool::File::ReadUrgency::streaming,
         .allow_split = false,
         .allow_mapped_copy = false,
         .allow_mapped_view = false,
@@ -186,13 +186,13 @@ void testPlannerRangeMerge(TestContext& context_) {
         .group_id = 4,
         .request_id = 401
     });
-    requests.push_back(Center::File::ReadRequest{
+    requests.push_back(Tool::File::ReadRequest{
         .path = "merge.bin",
         .offset = 66 * 1024,
         .size_bytes = static_cast<std::uint64_t>(buffer_b.size()),
         .destination = buffer_b.data(),
         .destination_capacity = buffer_b.size(),
-        .urgency = Center::File::ReadUrgency::streaming,
+        .urgency = Tool::File::ReadUrgency::streaming,
         .allow_split = false,
         .allow_mapped_copy = false,
         .allow_mapped_view = false,
@@ -211,21 +211,21 @@ void testPlannerRangeMerge(TestContext& context_) {
 }
 
 void testPlannerDeadlinePreempt(TestContext& context_) {
-    Center::File::PlannerConfig config{};
+    Tool::File::PlannerConfig config{};
     config.deadline_preempt_window_ticks = 1'000'000'000ull;
-    Center::File::FileReadPlanner planner{config};
+    Tool::File::FileReadPlanner planner{config};
 
     std::vector<std::byte> buffer(4096);
     const auto now_ticks = static_cast<std::uint64_t>(std::chrono::steady_clock::now().time_since_epoch().count());
 
-    std::vector<Center::File::ReadRequest> requests;
-    requests.push_back(Center::File::ReadRequest{
+    std::vector<Tool::File::ReadRequest> requests;
+    requests.push_back(Tool::File::ReadRequest{
         .path = "deadline.bin",
         .offset = 0,
         .size_bytes = static_cast<std::uint64_t>(buffer.size()),
         .destination = buffer.data(),
         .destination_capacity = buffer.size(),
-        .urgency = Center::File::ReadUrgency::background,
+        .urgency = Tool::File::ReadUrgency::background,
         .allow_split = false,
         .allow_mapped_copy = false,
         .allow_mapped_view = false,
@@ -245,21 +245,21 @@ void testSchedulerMappedView(TestContext& context_, const std::filesystem::path&
     const auto original = makeBytes(3 * 1024 * 1024, 0x55667788u);
     expectTrue(context_, writeBinary(path, original), "生成 scheduler_view.bin");
 
-    Center::File::PlannerConfig config{};
+    Tool::File::PlannerConfig config{};
     config.worker_limit = 4;
     config.storage.large_file_threshold = 1 * 1024 * 1024;
     config.storage.split_chunk_bytes = 8 * 1024 * 1024;
 
-    Center::File::FileReadScheduler scheduler{config};
+    Tool::File::FileReadScheduler scheduler{config};
 
-    std::vector<Center::File::ReadRequest> requests;
-    requests.push_back(Center::File::ReadRequest{
+    std::vector<Tool::File::ReadRequest> requests;
+    requests.push_back(Tool::File::ReadRequest{
         .path = path,
         .offset = 0,
         .size_bytes = static_cast<std::uint64_t>(original.size()),
         .destination = nullptr,
         .destination_capacity = 0,
-        .urgency = Center::File::ReadUrgency::streaming,
+        .urgency = Tool::File::ReadUrgency::streaming,
         .allow_split = false,
         .allow_mapped_copy = false,
         .allow_mapped_view = true,
@@ -271,8 +271,8 @@ void testSchedulerMappedView(TestContext& context_, const std::filesystem::path&
     });
 
     std::atomic<int> callback_count{0};
-    std::vector<Center::File::ReadView> views;
-    auto status = scheduler.runViewRequests(requests, views, [&](const Center::File::ReadView&) {
+    std::vector<Tool::File::ReadView> views;
+    auto status = scheduler.runViewRequests(requests, views, [&](const Tool::File::ReadView&) {
         callback_count.fetch_add(1, std::memory_order_relaxed);
     });
     expectTrue(context_, static_cast<bool>(status), "runViewRequests 应成功");
@@ -308,3 +308,4 @@ int main() {
 
     return context.failed_count == 0 ? 0 : 1;
 }
+

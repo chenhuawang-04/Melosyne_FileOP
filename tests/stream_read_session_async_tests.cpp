@@ -55,8 +55,8 @@ void testAsyncReadAll(TestContext& context_, const std::filesystem::path& root_)
     auto payload = makeBytes(512 * 1024 + 7, 0x76543210u);
     expectTrue(context_, writeBinaryFile(path, std::span<const std::byte>{payload.data(), payload.size()}), "create payload file");
 
-    Center::File::StreamReadSessionAsync session{};
-    Center::File::StreamReadConfig config{};
+    Tool::File::StreamReadSessionAsync session{};
+    Tool::File::StreamReadConfig config{};
     config.chunk_bytes = 64 * 1024;
 
     auto start_status = session.start(path, 0, 0, config);
@@ -150,3 +150,4 @@ int main() {
 
     return context.failed_count == 0 ? 0 : 1;
 }
+

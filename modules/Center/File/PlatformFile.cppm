@@ -2,12 +2,12 @@
 
 #include <filesystem>
 
-export module Center.File.PlatformFile;
+export module Tool.File.PlatformFile;
 
-import Center.File.Error;
-import Center.File.Types;
+import Tool.File.Error;
+import Tool.File.Types;
 
-export namespace Center::File {
+export namespace Tool::File {
 
 class PlatformFile {
 public:
@@ -82,4 +82,5 @@ private:
     void* native_handle_ = invalidHandle();
 };
 
-} // namespace Center::File
+} // namespace Tool::File
+

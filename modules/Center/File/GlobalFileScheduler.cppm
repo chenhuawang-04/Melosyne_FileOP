@@ -3,13 +3,13 @@
 #include <memory>
 #include <mutex>
 
-export module Center.File.GlobalFileScheduler;
+export module Tool.File.GlobalFileScheduler;
 
-import Center.File.FileReadScheduler;
-import Center.File.SchedulingTypes;
-import Center.File.Error;
+import Tool.File.FileReadScheduler;
+import Tool.File.SchedulingTypes;
+import Tool.File.Error;
 
-export namespace Center::File {
+export namespace Tool::File {
 
 class GlobalFileScheduler final {
 public:
@@ -67,4 +67,5 @@ private:
     }
 };
 
-} // namespace Center::File
+} // namespace Tool::File
+

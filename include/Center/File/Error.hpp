@@ -7,7 +7,7 @@
 #include <expected>
 #include <system_error>
 
-namespace Center::File {
+namespace Tool::File {
 
 enum class FileOperation : std::uint8_t {
     open,
@@ -51,4 +51,5 @@ std::unexpected<FileError> makeUnexpected(FileError error_) noexcept {
     return "unknown";
 }
 
-} // namespace Center::File
+} // namespace Tool::File
+

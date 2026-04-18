@@ -13,7 +13,7 @@
     #include <thread_center/thread_center.hpp>
 #endif
 
-namespace Center::File {
+namespace Tool::File {
 
 using PlannedTaskExecutor = std::function<FileStatus(const PlannedReadTask& task_)>;
 
@@ -126,4 +126,5 @@ public:
 
 #endif
 
-} // namespace Center::File
+} // namespace Tool::File
+

@@ -5,11 +5,11 @@
 #include <vector>
 #include <string>
 
-export module Center.File.FileReadPlanner;
+export module Tool.File.FileReadPlanner;
 
-import Center.File.SchedulingTypes;
+import Tool.File.SchedulingTypes;
 
-export namespace Center::File {
+export namespace Tool::File {
 
 class FileReadPlanner {
 public:
@@ -283,4 +283,5 @@ private:
     PlannerConfig config_{};
 };
 
-} // namespace Center::File
+} // namespace Tool::File
+

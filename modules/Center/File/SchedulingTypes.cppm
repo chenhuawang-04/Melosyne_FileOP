@@ -7,11 +7,11 @@
 #include <thread>
 #include <vector>
 
-export module Center.File.SchedulingTypes;
+export module Tool.File.SchedulingTypes;
 
-import Center.File.Error;
+import Tool.File.Error;
 
-export namespace Center::File {
+export namespace Tool::File {
 
 enum class ReadUrgency : std::uint8_t {
     immediate,
@@ -138,4 +138,5 @@ struct ReadPlan {
     return 0;
 }
 
-} // namespace Center::File
+} // namespace Tool::File
+

@@ -8,14 +8,14 @@
 #include <span>
 #include <system_error>
 
-export module Center.File.StreamReadSession;
+export module Tool.File.StreamReadSession;
 
-import Center.File.PlatformFile;
-import Center.File.StreamTypes;
-import Center.File.Types;
-import Center.File.Error;
+import Tool.File.PlatformFile;
+import Tool.File.StreamTypes;
+import Tool.File.Types;
+import Tool.File.Error;
 
-export namespace Center::File {
+export namespace Tool::File {
 
 
 class StreamReadSession {
@@ -191,5 +191,6 @@ private:
     std::atomic<bool> end_of_stream{true};
 };
 
-} // namespace Center::File
+} // namespace Tool::File
+
 

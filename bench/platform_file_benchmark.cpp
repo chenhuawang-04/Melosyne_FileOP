@@ -411,7 +411,7 @@ int main() {
         return 1;
     }
 
-    auto platform_file_result = Center::File::PlatformFile::openRead(payload_path, Center::File::FileHint::sequential);
+    auto platform_file_result = Tool::File::PlatformFile::openRead(payload_path, Tool::File::FileHint::sequential);
     if (!platform_file_result) {
         std::cerr << "PlatformFile 打开失败, error=" << platform_file_result.error().code.message() << '\n';
         return 1;
@@ -525,4 +525,5 @@ int main() {
 
     return 0;
 }
+
 
