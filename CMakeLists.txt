@@ -13,7 +13,9 @@ option(CENTER_FILE_ENABLE_MODULES "Enable C++23 module interfaces for Center::Fi
 option(CENTER_FILE_BUILD_TESTS "Build test executables" ${PROJECT_IS_TOP_LEVEL})
 option(CENTER_FILE_BUILD_BENCHMARKS "Build benchmark executables" ${PROJECT_IS_TOP_LEVEL})
 option(CENTER_FILE_INSTALL "Enable install/export package config" ${PROJECT_IS_TOP_LEVEL})
+option(CENTER_FILE_AUTO_DETECT_DEPENDENCIES "Auto-detect dependency roots from workspace-level project tree" ON)
 
+set(CENTER_FILE_WORKSPACE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.." CACHE PATH "Workspace root used to auto-detect ThreadCenter/MemoryCenter")
 set(CENTER_FILE_THREAD_CENTER_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../ThreadCenter" CACHE PATH "Path to ThreadCenter project root")
 set(CENTER_FILE_MEMORY_CENTER_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../MemoryCenterNew" CACHE PATH "Path to MemoryCenter project root")
 
@@ -28,12 +30,79 @@ if (NOT PROJECT_IS_TOP_LEVEL)
     endif()
 endif()
 
-set(center_file_thread_center_available OFF)
-set(center_file_thread_center_include_dir "${CENTER_FILE_THREAD_CENTER_ROOT}/include")
-set(center_file_thread_center_taskflow_dir "${CENTER_FILE_THREAD_CENTER_ROOT}/taskflow-4.0.0")
+function(center_file_resolve_dependency_root dependency_dir_name configured_root workspace_root marker_relative_path out_root out_found)
+    set(candidate_roots "")
 
+    if (configured_root)
+        list(APPEND candidate_roots "${configured_root}")
+    endif()
+
+    if (workspace_root)
+        list(APPEND candidate_roots "${workspace_root}/${dependency_dir_name}")
+    endif()
+
+    if (CMAKE_SOURCE_DIR)
+        list(APPEND candidate_roots "${CMAKE_SOURCE_DIR}/${dependency_dir_name}")
+    endif()
+
+    if (CMAKE_CURRENT_SOURCE_DIR)
+        list(APPEND candidate_roots "${CMAKE_CURRENT_SOURCE_DIR}/../${dependency_dir_name}")
+    endif()
+
+    list(REMOVE_DUPLICATES candidate_roots)
+
+    set(resolved_root "")
+    foreach(candidate_root IN LISTS candidate_roots)
+        if (EXISTS "${candidate_root}/${marker_relative_path}")
+            set(resolved_root "${candidate_root}")
+            break()
+        endif()
+    endforeach()
+
+    if (NOT resolved_root AND CENTER_FILE_AUTO_DETECT_DEPENDENCIES)
+        if (workspace_root AND EXISTS "${workspace_root}")
+            file(GLOB workspace_children LIST_DIRECTORIES true "${workspace_root}/*")
+            foreach(workspace_child IN LISTS workspace_children)
+                if (IS_DIRECTORY "${workspace_child}" AND EXISTS "${workspace_child}/${marker_relative_path}")
+                    set(resolved_root "${workspace_child}")
+                    break()
+                endif()
+            endforeach()
+        endif()
+    endif()
+
+    if (resolved_root)
+        set(${out_root} "${resolved_root}" PARENT_SCOPE)
+        set(${out_found} ON PARENT_SCOPE)
+    else()
+        set(${out_root} "${configured_root}" PARENT_SCOPE)
+        set(${out_found} OFF PARENT_SCOPE)
+    endif()
+endfunction()
+
+set(center_file_thread_center_available OFF)
 set(center_file_memory_center_available OFF)
-set(center_file_memory_center_include_dir "${CENTER_FILE_MEMORY_CENTER_ROOT}/include")
+
+center_file_resolve_dependency_root(
+    "ThreadCenter"
+    "${CENTER_FILE_THREAD_CENTER_ROOT}"
+    "${CENTER_FILE_WORKSPACE_ROOT}"
+    "include/thread_center/thread_center.hpp"
+    center_file_thread_center_root_resolved
+    center_file_thread_center_available
+)
+set(center_file_thread_center_include_dir "${center_file_thread_center_root_resolved}/include")
+set(center_file_thread_center_taskflow_dir "${center_file_thread_center_root_resolved}/taskflow-4.0.0")
+
+center_file_resolve_dependency_root(
+    "MemoryCenterNew"
+    "${CENTER_FILE_MEMORY_CENTER_ROOT}"
+    "${CENTER_FILE_WORKSPACE_ROOT}"
+    "include/Center/Memory/MemoryCenter.hpp"
+    center_file_memory_center_root_resolved
+    center_file_memory_center_available
+)
+set(center_file_memory_center_include_dir "${center_file_memory_center_root_resolved}/include")
 
 function(center_file_apply_common target_name)
     target_compile_features(${target_name} PUBLIC cxx_std_23)
@@ -73,14 +142,13 @@ function(center_file_apply_common target_name)
 endfunction()
 
 if (CENTER_FILE_ENABLE_THREAD_CENTER)
-    if (EXISTS "${center_file_thread_center_include_dir}/thread_center/thread_center.hpp")
-        set(center_file_thread_center_available ON)
-        message(STATUS "CenterFile dependency: ThreadCenter FOUND at ${CENTER_FILE_THREAD_CENTER_ROOT}")
+    if (center_file_thread_center_available)
+        message(STATUS "CenterFile dependency: ThreadCenter FOUND at ${center_file_thread_center_root_resolved}")
     else()
         if (CENTER_FILE_REQUIRE_THREAD_CENTER)
-            message(FATAL_ERROR "CenterFile dependency: ThreadCenter MISSING at ${CENTER_FILE_THREAD_CENTER_ROOT} (CENTER_FILE_REQUIRE_THREAD_CENTER=ON)")
+            message(FATAL_ERROR "CenterFile dependency: ThreadCenter MISSING. configured='${CENTER_FILE_THREAD_CENTER_ROOT}', workspace='${CENTER_FILE_WORKSPACE_ROOT}' (CENTER_FILE_REQUIRE_THREAD_CENTER=ON)")
         else()
-            message(WARNING "CenterFile dependency: ThreadCenter MISSING at ${CENTER_FILE_THREAD_CENTER_ROOT}, integration disabled")
+            message(WARNING "CenterFile dependency: ThreadCenter MISSING. configured='${CENTER_FILE_THREAD_CENTER_ROOT}', workspace='${CENTER_FILE_WORKSPACE_ROOT}'. integration disabled")
         endif()
     endif()
 else()
@@ -88,14 +156,13 @@ else()
 endif()
 
 if (CENTER_FILE_ENABLE_MEMORY_CENTER)
-    if (EXISTS "${center_file_memory_center_include_dir}")
-        set(center_file_memory_center_available ON)
-        message(STATUS "CenterFile dependency: MemoryCenter FOUND at ${CENTER_FILE_MEMORY_CENTER_ROOT}")
+    if (center_file_memory_center_available)
+        message(STATUS "CenterFile dependency: MemoryCenter FOUND at ${center_file_memory_center_root_resolved}")
     else()
         if (CENTER_FILE_REQUIRE_MEMORY_CENTER)
-            message(FATAL_ERROR "CenterFile dependency: MemoryCenter MISSING at ${CENTER_FILE_MEMORY_CENTER_ROOT} (CENTER_FILE_REQUIRE_MEMORY_CENTER=ON)")
+            message(FATAL_ERROR "CenterFile dependency: MemoryCenter MISSING. configured='${CENTER_FILE_MEMORY_CENTER_ROOT}', workspace='${CENTER_FILE_WORKSPACE_ROOT}' (CENTER_FILE_REQUIRE_MEMORY_CENTER=ON)")
         else()
-            message(WARNING "CenterFile dependency: MemoryCenter MISSING at ${CENTER_FILE_MEMORY_CENTER_ROOT}, integration disabled")
+            message(WARNING "CenterFile dependency: MemoryCenter MISSING. configured='${CENTER_FILE_MEMORY_CENTER_ROOT}', workspace='${CENTER_FILE_WORKSPACE_ROOT}'. integration disabled")
         endif()
     endif()
 else()
