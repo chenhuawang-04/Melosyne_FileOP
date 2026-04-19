@@ -253,6 +253,7 @@ set(center_file_module_files
     modules/Center/File/TripleReadBuffer.cppm
     modules/Center/File/StreamReadSession.cppm
     modules/Center/File/StreamReadSessionAsync.cppm
+    modules/Center/File/BinaryReadHelper.cppm
     modules/Center/File/FileOp.cppm
 )
 
@@ -299,6 +300,7 @@ if (CENTER_FILE_BUILD_TESTS)
     center_file_add_executable(triple_read_buffer_tests tests/triple_read_buffer_tests.cpp)
     center_file_add_executable(stream_read_session_tests tests/stream_read_session_tests.cpp)
     center_file_add_executable(stream_read_session_async_tests tests/stream_read_session_async_tests.cpp)
+    center_file_add_executable(binary_read_helper_tests tests/binary_read_helper_tests.cpp)
 endif()
 
 if (CENTER_FILE_INSTALL)
@@ -346,5 +348,6 @@ if (CENTER_FILE_INSTALL)
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/CenterFile
     )
 endif()
+
 
 

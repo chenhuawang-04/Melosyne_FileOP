@@ -14,4 +14,4 @@ export import Tool.File.StreamTypes;
 export import Tool.File.TripleReadBuffer;
 export import Tool.File.StreamReadSession;
 export import Tool.File.StreamReadSessionAsync;
-
+export import Tool.File.BinaryReadHelper;
