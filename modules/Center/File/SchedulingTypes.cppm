@@ -1,14 +1,16 @@
 ﻿module;
 
 #include <algorithm>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <span>
 #include <thread>
-#include <vector>
 
 export module Tool.File.SchedulingTypes;
 
+export import Tool.File.Config;
 import Tool.File.Error;
 
 export namespace Tool::File {
@@ -56,6 +58,21 @@ struct ReadRequest {
     std::uint32_t request_id = 0;
 };
 
+template<typename request_container_type>
+concept ReadRequestContainer = requires(const request_container_type& request_container_) {
+    { request_container_.data() } -> std::convertible_to<const ReadRequest*>;
+    { request_container_.size() } -> std::convertible_to<std::size_t>;
+};
+
+template<ReadRequestContainer request_container_type>
+[[nodiscard]] inline
+auto asReadRequestSpan(const request_container_type& request_container_) noexcept -> std::span<const ReadRequest> {
+    return std::span<const ReadRequest>{
+        request_container_.data(),
+        static_cast<std::size_t>(request_container_.size())
+    };
+}
+
 struct ReadSegment {
     std::uint64_t source_offset = 0;
     std::uint64_t size_bytes = 0;
@@ -80,7 +97,7 @@ struct PlannedReadTask {
     std::uint32_t group_id = 0;
     std::uint32_t request_id = 0;
 
-    std::vector<ReadSegment> segments{};
+    DynamicArray<ReadSegment> segments{};
 };
 
 struct StorageProfile {
@@ -113,9 +130,9 @@ struct PlannerConfig {
 struct ReadPlan {
     PlannerConfig config{};
 
-    std::vector<PlannedReadTask> urgent_tasks{};
-    std::vector<PlannedReadTask> normal_tasks{};
-    std::vector<PlannedReadTask> background_tasks{};
+    DynamicArray<PlannedReadTask> urgent_tasks{};
+    DynamicArray<PlannedReadTask> normal_tasks{};
+    DynamicArray<PlannedReadTask> background_tasks{};
 
     [[nodiscard]] auto totalTaskCount() const noexcept -> std::size_t {
         return urgent_tasks.size() + normal_tasks.size() + background_tasks.size();

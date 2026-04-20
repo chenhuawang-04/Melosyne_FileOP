@@ -1,6 +1,7 @@
 ﻿#include "Center/File/GlobalFileScheduler.hpp"
 #include "Center/File/PlatformFile.hpp"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -102,7 +103,8 @@ void testRunRequestThroughGlobalScheduler(TestContext& context_, const std::file
     request.urgency = ReadUrgency::streaming;
     request.allow_mapped_copy = true;
 
-    auto status = GlobalFileScheduler::get().runRequests({request});
+    std::array<ReadRequest, 1> requests{request};
+    auto status = GlobalFileScheduler::get().runRequests(requests);
     expectTrue(context_, static_cast<bool>(status), "通过全局 scheduler 执行 runRequests 应成功");
     expectTrue(context_, destination == payload, "全局 scheduler 读取结果应正确");
 
@@ -132,4 +134,3 @@ int main() {
 
     return context.failed_count == 0 ? 0 : 1;
 }
-

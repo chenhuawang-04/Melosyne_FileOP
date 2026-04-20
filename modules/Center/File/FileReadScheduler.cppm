@@ -9,15 +9,17 @@
 
 #include <algorithm>
 #include <chrono>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <filesystem>
+#include <cstring>
+#include <expected>
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <span>
 #include <system_error>
-#include <vector>
 
 export module Tool.File.FileReadScheduler;
 
@@ -31,7 +33,6 @@ import Tool.File.SchedulingTypes;
 
 export namespace Tool::File {
 
-
 struct ReadView {
     std::filesystem::path path{};
     std::uint64_t source_offset = 0;
@@ -44,6 +45,13 @@ struct ReadView {
 
 using ReadViewCallback = std::function<void(const ReadView& view_)>;
 
+template<typename view_container_type>
+concept ReadViewContainer = requires(view_container_type& view_container_, const ReadView& view_) {
+    view_container_.clear();
+    view_container_.push_back(view_);
+    { view_container_.size() } -> std::convertible_to<std::size_t>;
+};
+
 class FileReadScheduler {
 public:
     explicit FileReadScheduler(PlannerConfig planner_config_ = {})
@@ -52,18 +60,28 @@ public:
           read_handle_pool_(planner_config_.handle_pool_capacity) {
     }
 
-    [[nodiscard]] auto makePlan(const std::vector<ReadRequest>& requests_) const -> ReadPlan {
+    [[nodiscard]] auto makePlan(std::span<const ReadRequest> requests_) const -> ReadPlan {
         return planner_.makePlan(requests_, currentSteadyTicks());
     }
 
-    [[nodiscard]] auto runRequests(const std::vector<ReadRequest>& requests_) -> FileStatus {
+    template<ReadRequestContainer request_container_type>
+    [[nodiscard]] auto makePlan(const request_container_type& requests_) const -> ReadPlan {
+        return makePlan(asReadRequestSpan(requests_));
+    }
+
+    [[nodiscard]] auto runRequests(std::span<const ReadRequest> requests_) -> FileStatus {
         auto plan = planner_.makePlan(requests_, currentSteadyTicks());
         return runPlan(plan);
     }
 
+    template<ReadRequestContainer request_container_type>
+    [[nodiscard]] auto runRequests(const request_container_type& requests_) -> FileStatus {
+        return runRequests(asReadRequestSpan(requests_));
+    }
+
     [[nodiscard]] auto runPlan(const ReadPlan& plan_) -> FileStatus {
         auto dispatch_status = adapter_.runPlan(plan_, [this](const PlannedReadTask& task_) {
-            return executeTask(task_, nullptr, nullptr, nullptr);
+            return executeTask(task_);
         });
 
         if (dispatch_status) {
@@ -71,24 +89,33 @@ public:
         }
 
         if (dispatch_status.error().code == std::make_error_code(std::errc::function_not_supported)) {
-            return runPlanSequential(plan_, nullptr, nullptr);
+            return runPlanSequential(plan_);
         }
 
         return dispatch_status;
     }
 
-    [[nodiscard]] auto runViewRequests(const std::vector<ReadRequest>& requests_, std::vector<ReadView>& out_views_) -> FileStatus {
+    template<ReadViewContainer view_container_type>
+    [[nodiscard]] auto runViewRequests(std::span<const ReadRequest> requests_, view_container_type& out_views_) -> FileStatus {
         return runViewRequests(requests_, out_views_, ReadViewCallback{});
     }
 
-    [[nodiscard]] auto runViewRequests(const std::vector<ReadRequest>& requests_,
-                                       std::vector<ReadView>& out_views_,
+    template<ReadRequestContainer request_container_type, ReadViewContainer view_container_type>
+    [[nodiscard]] auto runViewRequests(const request_container_type& requests_, view_container_type& out_views_) -> FileStatus {
+        return runViewRequests(asReadRequestSpan(requests_), out_views_, ReadViewCallback{});
+    }
+
+    template<ReadViewContainer view_container_type>
+    [[nodiscard]] auto runViewRequests(std::span<const ReadRequest> requests_,
+                                       view_container_type& out_views_,
                                        const ReadViewCallback& view_callback_) -> FileStatus {
         auto plan = planner_.makePlan(requests_, currentSteadyTicks());
 
+        prepareOutViews(out_views_, estimateMappedViewCount(plan));
+
         std::mutex view_mutex;
         auto dispatch_status = adapter_.runPlan(plan, [this, &out_views_, &view_mutex, &view_callback_](const PlannedReadTask& task_) {
-            return executeTask(task_, &out_views_, &view_mutex, &view_callback_);
+            return executeTaskWithViews(task_, &out_views_, &view_mutex, &view_callback_);
         });
 
         if (dispatch_status) {
@@ -96,10 +123,17 @@ public:
         }
 
         if (dispatch_status.error().code == std::make_error_code(std::errc::function_not_supported)) {
-            return runPlanSequential(plan, &out_views_, &view_callback_);
+            return runPlanSequentialWithViews(plan, out_views_, &view_callback_);
         }
 
         return dispatch_status;
+    }
+
+    template<ReadRequestContainer request_container_type, ReadViewContainer view_container_type>
+    [[nodiscard]] auto runViewRequests(const request_container_type& requests_,
+                                       view_container_type& out_views_,
+                                       const ReadViewCallback& view_callback_) -> FileStatus {
+        return runViewRequests(asReadRequestSpan(requests_), out_views_, view_callback_);
     }
 
     void waitIdle() {
@@ -214,25 +248,53 @@ private:
         );
     }
 
-    [[nodiscard]] auto runPlanSequential(const ReadPlan& plan_,
-                                         std::vector<ReadView>* out_views_,
-                                         const ReadViewCallback* view_callback_) -> FileStatus {
+    template<ReadViewContainer view_container_type>
+    static void prepareOutViews(view_container_type& out_views_, std::size_t reserve_count_) {
+        const auto old_size = static_cast<std::size_t>(out_views_.size());
+        if constexpr (requires(view_container_type& value) { value.reserve(old_size + reserve_count_); }) {
+            out_views_.reserve(old_size + reserve_count_);
+        } else {
+            (void)old_size;
+            (void)reserve_count_;
+        }
+    }
+
+    [[nodiscard]] static auto estimateMappedViewCount(const ReadPlan& plan_) -> std::size_t {
+        std::size_t total_count = 0;
+
+        auto accumulate_lane = [&total_count](const DynamicArray<PlannedReadTask>& tasks_) {
+            for (const auto& task : tasks_) {
+                if (task.method != ReadMethod::mappedView) {
+                    continue;
+                }
+                total_count += task.segments.empty() ? 1 : task.segments.size();
+            }
+        };
+
+        accumulate_lane(plan_.urgent_tasks);
+        accumulate_lane(plan_.normal_tasks);
+        accumulate_lane(plan_.background_tasks);
+
+        return total_count;
+    }
+
+    [[nodiscard]] auto runPlanSequential(const ReadPlan& plan_) -> FileStatus {
         for (const auto& task : plan_.urgent_tasks) {
-            auto status = executeTask(task, out_views_, nullptr, view_callback_);
+            auto status = executeTask(task);
             if (!status) {
                 return status;
             }
         }
 
         for (const auto& task : plan_.normal_tasks) {
-            auto status = executeTask(task, out_views_, nullptr, view_callback_);
+            auto status = executeTask(task);
             if (!status) {
                 return status;
             }
         }
 
         for (const auto& task : plan_.background_tasks) {
-            auto status = executeTask(task, out_views_, nullptr, view_callback_);
+            auto status = executeTask(task);
             if (!status) {
                 return status;
             }
@@ -241,10 +303,55 @@ private:
         return {};
     }
 
-    [[nodiscard]] auto executeTask(const PlannedReadTask& task_,
-                                   std::vector<ReadView>* out_views_,
-                                   std::mutex* out_views_mutex_ = nullptr,
-                                   const ReadViewCallback* view_callback_ = nullptr) -> FileStatus {
+    template<ReadViewContainer view_container_type>
+    [[nodiscard]] auto runPlanSequentialWithViews(const ReadPlan& plan_,
+                                                  view_container_type& out_views_,
+                                                  const ReadViewCallback* view_callback_) -> FileStatus {
+        for (const auto& task : plan_.urgent_tasks) {
+            auto status = executeTaskWithViews(task, &out_views_, nullptr, view_callback_);
+            if (!status) {
+                return status;
+            }
+        }
+
+        for (const auto& task : plan_.normal_tasks) {
+            auto status = executeTaskWithViews(task, &out_views_, nullptr, view_callback_);
+            if (!status) {
+                return status;
+            }
+        }
+
+        for (const auto& task : plan_.background_tasks) {
+            auto status = executeTaskWithViews(task, &out_views_, nullptr, view_callback_);
+            if (!status) {
+                return status;
+            }
+        }
+
+        return {};
+    }
+
+    [[nodiscard]] auto executeTask(const PlannedReadTask& task_) -> FileStatus {
+        switch (task_.method) {
+            case ReadMethod::directRead:
+                return executeDirectReadTask(task_);
+            case ReadMethod::mappedCopy:
+                return executeMappedCopyTask(task_);
+            case ReadMethod::mappedView:
+                return executeMappedCopyTask(task_);
+        }
+
+        return makeUnexpected(FileError{
+            .operation = FileOperation::read,
+            .code = std::make_error_code(std::errc::invalid_argument)
+        });
+    }
+
+    template<ReadViewContainer view_container_type>
+    [[nodiscard]] auto executeTaskWithViews(const PlannedReadTask& task_,
+                                            view_container_type* out_views_,
+                                            std::mutex* out_views_mutex_ = nullptr,
+                                            const ReadViewCallback* view_callback_ = nullptr) -> FileStatus {
         switch (task_.method) {
             case ReadMethod::directRead:
                 return executeDirectReadTask(task_);
@@ -271,7 +378,7 @@ private:
 
             auto file_result = read_handle_pool_.getReadHandle(task_.path, FileHint::sequential, FileShare::read);
             if (!file_result) {
-                return makeUnexpected(file_result.error());
+                return std::unexpected(file_result.error());
             }
 
             auto* file = *file_result;
@@ -281,11 +388,11 @@ private:
 
         auto file_result = read_handle_pool_.getReadHandle(task_.path, FileHint::sequential, FileShare::read);
         if (!file_result) {
-            return makeUnexpected(file_result.error());
+            return std::unexpected(file_result.error());
         }
 
         auto* file = *file_result;
-        std::vector<std::byte> merged_buffer(static_cast<std::size_t>(task_.size_bytes));
+        DynamicArray<std::byte> merged_buffer(static_cast<std::size_t>(task_.size_bytes));
         auto merged_span = MutableBytes{merged_buffer.data(), merged_buffer.size()};
         auto read_status = file->readExactAt(task_.offset, merged_span);
         if (!read_status) {
@@ -312,7 +419,7 @@ private:
 #if defined(CENTER_FILE_WINDOWS)
         auto mapping_result = openMapping(task_.path, task_.offset, task_.size_bytes);
         if (!mapping_result) {
-            return makeUnexpected(mapping_result.error());
+            return std::unexpected(mapping_result.error());
         }
 
         auto bundle = std::move(*mapping_result);
@@ -348,8 +455,9 @@ private:
 #endif
     }
 
+    template<ReadViewContainer view_container_type>
     [[nodiscard]] auto executeMappedViewTask(const PlannedReadTask& task_,
-                                             std::vector<ReadView>* out_views_,
+                                             view_container_type* out_views_,
                                              std::mutex* out_views_mutex_,
                                              const ReadViewCallback* view_callback_) -> FileStatus {
 #if defined(CENTER_FILE_WINDOWS)
@@ -359,7 +467,7 @@ private:
 
         auto mapping_result = openMapping(task_.path, task_.offset, task_.size_bytes);
         if (!mapping_result) {
-            return makeUnexpected(mapping_result.error());
+            return std::unexpected(mapping_result.error());
         }
 
         auto bundle_ptr = std::make_shared<MappingBundle>(std::move(*mapping_result));
@@ -493,4 +601,6 @@ private:
 };
 
 } // namespace Tool::File
+
+
 

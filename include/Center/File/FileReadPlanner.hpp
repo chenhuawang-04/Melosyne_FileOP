@@ -3,6 +3,8 @@
 #include "Center/File/SchedulingTypes.hpp"
 
 #include <algorithm>
+#include <span>
+#include <string>
 #include <utility>
 
 namespace Tool::File {
@@ -13,15 +15,15 @@ public:
         : config_(std::move(config_)) {
     }
 
-    [[nodiscard]] auto makePlan(const std::vector<ReadRequest>& requests_) const -> ReadPlan {
+    [[nodiscard]] auto makePlan(std::span<const ReadRequest> requests_) const -> ReadPlan {
         return makePlan(requests_, 0);
     }
 
-    [[nodiscard]] auto makePlan(const std::vector<ReadRequest>& requests_, std::uint64_t now_ticks_) const -> ReadPlan {
+    [[nodiscard]] auto makePlan(std::span<const ReadRequest> requests_, std::uint64_t now_ticks_) const -> ReadPlan {
         ReadPlan plan{};
         plan.config = config_;
 
-        std::vector<PlannedReadTask> staged_tasks{};
+        DynamicArray<PlannedReadTask> staged_tasks{};
         staged_tasks.reserve(requests_.size());
 
         for (const auto& request : requests_) {
@@ -80,6 +82,16 @@ public:
         return plan;
     }
 
+    template<ReadRequestContainer request_container_type>
+    [[nodiscard]] auto makePlan(const request_container_type& requests_) const -> ReadPlan {
+        return makePlan(asReadRequestSpan(requests_), 0);
+    }
+
+    template<ReadRequestContainer request_container_type>
+    [[nodiscard]] auto makePlan(const request_container_type& requests_, std::uint64_t now_ticks_) const -> ReadPlan {
+        return makePlan(asReadRequestSpan(requests_), now_ticks_);
+    }
+
     [[nodiscard]] auto config() const noexcept -> const PlannerConfig& {
         return config_;
     }
@@ -126,7 +138,7 @@ private:
         return task;
     }
 
-    void sortTasks(std::vector<PlannedReadTask>& tasks_) const {
+    void sortTasks(DynamicArray<PlannedReadTask>& tasks_) const {
         std::stable_sort(tasks_.begin(), tasks_.end(), [](const PlannedReadTask& lhs_, const PlannedReadTask& rhs_) {
             if (lhs_.lane != rhs_.lane) {
                 return static_cast<std::uint32_t>(lhs_.lane) < static_cast<std::uint32_t>(rhs_.lane);
@@ -158,12 +170,12 @@ private:
         });
     }
 
-    [[nodiscard]] auto mergeTasks(std::vector<PlannedReadTask> tasks_) const -> std::vector<PlannedReadTask> {
+    [[nodiscard]] auto mergeTasks(DynamicArray<PlannedReadTask> tasks_) const -> DynamicArray<PlannedReadTask> {
         if (tasks_.empty()) {
             return tasks_;
         }
 
-        std::vector<PlannedReadTask> merged_tasks{};
+        DynamicArray<PlannedReadTask> merged_tasks{};
         merged_tasks.reserve(tasks_.size());
 
         auto canMerge = [&](const PlannedReadTask& lhs_, const PlannedReadTask& rhs_) {
@@ -280,4 +292,3 @@ private:
 };
 
 } // namespace Tool::File
-

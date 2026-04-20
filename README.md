@@ -7,15 +7,16 @@
 `FileOp_New` 提供一套偏底层、可组合的文件读写能力：
 
 - 平台后端读写（当前以 Win32 为主）
-- 面向引擎的读取调度（按紧急度/方法分流）
-- 流式读取（同步/异步）
+- 面向引擎的读取调度（按紧急度 / 方法分流）
+- 流式读取（同步 / 异步）
 - 三缓冲基础设施（TripleReadBuffer）
 - ThreadCenter 集成（可开关）
+- POD 一次性读取 helper（读入连续 span）
 
 适用场景：
 
-- 资源包/二进制资产加载
-- 大文件“读一点、消耗一点”的流式播放（音频/视频/流媒体）
+- 资源包 / 二进制资产加载
+- 大文件“读一点、消耗一点”的流式播放（音频 / 视频 / 流媒体）
 - 启动阶段批量资源预取
 
 ---
@@ -31,18 +32,14 @@ FileOp_New/
 │  ├─ StreamReadSession.hpp      # 同步流式读取
 │  ├─ StreamReadSessionAsync.hpp # 异步流式读取
 │  ├─ TripleReadBuffer.hpp       # 三缓冲核心结构
+│  ├─ BinaryReadHelper.hpp       # POD span 一次性读取 helper
 │  └─ ...
 ├─ src/
 │  └─ PlatformFileWin32.cpp      # Win32 后端实现
+├─ modules/Center/File/
+│  └─ *.cppm                     # 对称模块实现（真实 cppm）
 ├─ tests/
-│  ├─ stream_read_session_tests.cpp
-│  ├─ stream_read_session_async_tests.cpp
-│  ├─ triple_read_buffer_tests.cpp
-│  └─ file_read_scheduler_tests.cpp
 ├─ bench/
-│  ├─ platform_file_benchmark.cpp
-│  ├─ file_read_scheduler_bench.cpp
-│  └─ stream_read_benchmark.cpp
 └─ CMakeLists.txt
 ```
 
@@ -61,16 +58,21 @@ cmake --build build -j 8
 
 ```powershell
 cd build
+./platform_file_safety.exe
+./file_read_scheduler_tests.exe
+./global_file_scheduler_tests.exe
+./triple_read_buffer_tests.exe
 ./stream_read_session_tests.exe
 ./stream_read_session_async_tests.exe
-./triple_read_buffer_tests.exe
-./file_read_scheduler_tests.exe
+./binary_read_helper_tests.exe
 ```
 
 ### 3.3 运行基准
 
 ```powershell
 cd build
+./platform_file_benchmark.exe
+./file_read_scheduler_bench.exe
 ./stream_read_benchmark.exe
 ```
 
@@ -87,20 +89,46 @@ cd build
 std::array<std::byte, 4096> buffer{};
 auto file_result = Tool::File::PlatformFile::openRead("assets/data.bin");
 if (!file_result) {
-    // 处理 file_result.error()
     return;
 }
 
 auto file = std::move(*file_result);
 auto read_result = file.readAt(0, std::span<std::byte>{buffer.data(), buffer.size()});
 if (!read_result) {
-    // 处理 read_result.error()
     return;
 }
-// *read_result 为实际读取字节数
 ```
 
-### 4.2 同步流式读取：StreamReadSession
+### 4.2 POD 一次性读取到 span（高性能、单线程快捷接口）
+
+```cpp
+#include "Center/File/FileOp.hpp"
+
+struct Packet {
+    std::uint32_t id;
+    std::uint16_t channel;
+    std::uint16_t flags;
+    float gain;
+};
+
+std::vector<Packet> packets;
+packets.resize(expected_count);
+
+auto status = Tool::File::readFileToSpan(
+    "assets/packets.bin",
+    std::span<Packet>{packets.data(), packets.size()}
+);
+if (!status) {
+    // status.error()
+}
+```
+
+约束：
+
+- `readFileToSpan` 仅支持 POD 语义（`trivial + standard_layout`）
+- 文件大小必须与目标 span 字节数完全一致
+
+### 4.3 同步流式读取：StreamReadSession
 
 ```cpp
 #include "Center/File/FileOp.hpp"
@@ -119,171 +147,128 @@ std::array<std::byte, 256 * 1024> temp{};
 while (true) {
     auto read_result = session.readNext(std::span<std::byte>{temp.data(), temp.size()});
     if (!read_result) {
-        break; // 错误处理
+        break;
     }
     if (*read_result == 0) {
         break; // EOS
     }
-    // 消费 temp[0, *read_result)
 }
 
 session.stop();
 ```
 
-### 4.3 异步流式读取：StreamReadSessionAsync
+---
+
+## 5. 核心设计（容器重构后的 API）
+
+### 5.1 彻底去除 `std::vector` 绑定
+
+调度核心 API 已改为“容器无关”模式：
+
+- 输入：`std::span<const ReadRequest>` 或任意 `ReadRequestContainer`
+- 输出：任意 `ReadViewContainer`
+
+不再提供仅限 `std::vector<ReadRequest>` / `std::vector<ReadView>` 的专用入口。
+
+### 5.2 容器概念要求
+
+`ReadRequestContainer` 需要：
+
+- `data()` 可转为 `const ReadRequest*`
+- `size()` 可转为 `std::size_t`
+
+`ReadViewContainer` 需要：
+
+- `clear()`
+- `push_back(const ReadView&)`
+- `size()`
+- `reserve()` 是可选（有则自动利用，无则降级）
+
+### 5.3 内部动态数组类型抽象
+
+内部动态容器统一走：
 
 ```cpp
-#include "Center/File/FileOp.hpp"
-#include <array>
-
-Tool::File::StreamReadSessionAsync session{};
-Tool::File::StreamReadConfig config{};
-config.chunk_bytes = 256 * 1024;
-
-auto start_status = session.start("assets/stream.bin", 0, 0, config);
-if (!start_status) {
-    return;
-}
-
-std::array<std::byte, 256 * 1024> temp{};
-while (true) {
-    auto read_result = session.tryReadNext(std::span<std::byte>{temp.data(), temp.size()});
-    if (!read_result) {
-        break; // 错误处理
-    }
-    if (*read_result == 0) {
-        if (session.isEndOfStream()) {
-            break;
-        }
-        // 当前无数据可取，可短暂让出时间片
-        std::this_thread::yield();
-        continue;
-    }
-
-    // 消费 temp[0, *read_result)
-}
-
-session.stop();
+template<typename element_type>
+using DynamicArray = CENTER_FILE_VECTOR_TEMPLATE<element_type>;
 ```
 
----
-
-## 5. 关键设计说明
-
-### 5.1 错误体系
-
-统一使用：
-
-- `FileResult<T> = std::expected<T, FileError>`
-- `FileStatus = FileResult<void>`
-
-`FileError` 包含：
-
-- 操作类型（open/read/write/...）
-- 平台错误码（`std::error_code`）
-- offset / requested / processed / eof 标志
-
-### 5.2 内存与对齐
-
-- 流式缓冲支持 `std::pmr::memory_resource`
-- 关键缓冲区按 64 字节对齐（cache line 友好）
-- 三缓冲支持 stop 唤醒与错误传播
-
-### 5.3 调度与方法
-
-调度器可依据请求特征选择：
-
-- `directRead`
-- `mappedCopy`
-- `mappedView`
-
-并结合紧急度（urgent/normal/background）进行执行。
+默认是 `std::vector`，但可由项目级宏替换（见第 6 节）。
 
 ---
 
-## 6. 与 ThreadCenter 集成
+## 6. 自定义 Vector 接入（重点）
+
+如果你的容器模板第一个参数是元素类型，后续模板参数均有默认值，可直接替换。
+
+### 6.1 CMake 侧定义宏
+
+```cmake
+target_compile_definitions(MyGame PRIVATE
+    CENTER_FILE_CUSTOM_VECTOR_HEADER="MyContainer/MyVector.hpp"
+    CENTER_FILE_VECTOR_TEMPLATE=MyNamespace::Vector
+)
+```
+
+说明：
+
+- `CENTER_FILE_CUSTOM_VECTOR_HEADER`：可选，自定义容器头文件
+- `CENTER_FILE_VECTOR_TEMPLATE`：容器模板名（默认 `std::vector`）
+
+### 6.2 最小容器能力建议
+
+用于 `DynamicArray<T>` 的容器建议至少支持：
+
+- 默认构造、移动
+- `size()/empty()/data()`
+- `begin()/end()`
+- `reserve()/push_back()/front()/back()/operator[]`
+
+当前代码路径已经覆盖这些常见能力。
+
+---
+
+## 7. 与 ThreadCenter 集成
 
 CMake 选项：
 
 - `CENTER_FILE_ENABLE_THREAD_CENTER=ON/OFF`
 - `CENTER_FILE_THREAD_CENTER_ROOT=<path>`
+- `CENTER_FILE_REQUIRE_THREAD_CENTER=ON/OFF`
 
-默认启用；未找到依赖时会自动降级为可用路径并给出提示。
+依赖检测顺序：
 
----
-
-## 7. 性能与验证建议
-
-建议至少覆盖以下对照：
-
-1. direct chunked read（理论近似最快基线）
-2. stream pull（同步）
-3. stream async（异步）
-
-并同时关注：
-
-- 吞吐（MiB/s）
-- 尾延迟抖动（建议补充 P50/P90/P99）
-- CPU 占用
-- 冷热缓存差异
+1. 先看父工程已存在的 ThreadCenter target
+2. 再看配置路径 / workspace 自动探测路径
 
 ---
 
-## 8. 文档索引
-
-当前仓库中的设计/报告文档（均 UTF-8）：
-
-- `file_module_design.md`
-- `platform_file_validation_report.md`
-- `stream_triple_buffer_plan_v1.md`
-- `thread_center_integration_phase1.md`
-- `thread_center_integration_phase2_report.md`
-- `thread_center_integration_phase3_report.md`
-- `thread_center_integration_phase4_report.md`
-- `code_quality_review_2026-04-16.md`
-
----
-
-## 9. 命名规范（项目约定）
-
-- 函数名：首字母小写驼峰（`readNext`）
-- 变量名：小写蛇形（`ready_count`）
-- 函数参数：小写蛇形 + 末尾下划线（`path_`）
-
----
-
-## 10. 许可证
-
-见 `LICENSE`。
-
-## 11. C++23 Modules 版本（对称实现）
+## 8. C++23 Modules 版本（对称实现）
 
 本仓库已提供与 `include/Center/File` 对称的模块接口单元：
 
 - 路径：`modules/Center/File/*.cppm`
-- 聚合入口：`Tool.File.FileOp`（文件：`modules/Center/File/FileOp.cppm`）
+- 聚合入口：`Tool.File.FileOp`
 
 示例：
 
 ```cpp
 import Tool.File.FileOp;
-
 using namespace Tool::File;
 ```
 
 说明：
 
-- 这些 `.cppm` 为真实模块接口实现，不是头文件包装。
-- 宏定义传播仍建议沿用 `include/Center/File/Config.hpp`（宏定义天然不通过 module export 传播）。
-- 当 CMake >= 3.28 且 `CENTER_FILE_ENABLE_MODULES=ON` 时，会启用 `Tool::FileModules` 目标。
-- 当 CMake < 3.28 时，会保留模块源码文件但不作为 `CXX_MODULES` 编译（兼容现有构建环境）。
+- 这些 `.cppm` 是真实模块实现，不是头文件包装。
+- 当 CMake >= 3.28 且 `CENTER_FILE_ENABLE_MODULES=ON` 时，启用 `Tool::FileModules`。
 
-## 12. 便捷接入任意项目（推荐）
+---
 
-### 12.1 方式 A：`add_subdirectory` / FetchContent（最常用）
+## 9. 便捷接入任意项目
+
+### 9.1 add_subdirectory / FetchContent
 
 ```cmake
-# 你的主项目 CMakeLists.txt
 set(CENTER_FILE_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(CENTER_FILE_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
 set(CENTER_FILE_ENABLE_MODULES ON CACHE BOOL "" FORCE)
@@ -291,13 +276,10 @@ set(CENTER_FILE_ENABLE_MODULES ON CACHE BOOL "" FORCE)
 add_subdirectory(external/FileOp_New)
 
 target_link_libraries(MyGame PRIVATE Tool::File)
-# 如果要用 module 入口：
 # target_link_libraries(MyGame PRIVATE Tool::FileModules)
 ```
 
-### 12.2 方式 B：安装后 `find_package`
-
-在 FileOp_New 内安装：
+### 9.2 安装后 find_package
 
 ```powershell
 cmake -S . -B build -G Ninja -DCENTER_FILE_INSTALL=ON -DCENTER_FILE_BUILD_TESTS=OFF -DCENTER_FILE_BUILD_BENCHMARKS=OFF
@@ -305,26 +287,21 @@ cmake --build build
 cmake --install build --prefix <install-prefix>
 ```
 
-在你的项目里使用：
-
 ```cmake
 find_package(CenterFile CONFIG REQUIRED)
 target_link_libraries(MyGame PRIVATE Tool::File)
-# 如需模块目标：
-# target_link_libraries(MyGame PRIVATE Tool::FileModules)
 ```
 
-### 12.3 关键 CMake 选项
+---
 
-- `CENTER_FILE_BUILD_TESTS`：是否构建测试（默认顶层工程 ON）
-- `CENTER_FILE_BUILD_BENCHMARKS`：是否构建基准（默认顶层工程 ON）
-- `CENTER_FILE_ENABLE_MODULES`：是否启用 cppm 模块目标
-- `CENTER_FILE_ENABLE_THREAD_CENTER`：是否启用 ThreadCenter 适配
-- `CENTER_FILE_THREAD_CENTER_ROOT`：ThreadCenter 路径
-- `CENTER_FILE_INSTALL`：是否生成 install/export 包
+## 10. 命名规范（项目约定）
 
-???????
+- 函数名：首字母小写驼峰（`readNext`）
+- 变量名：小写蛇形（`ready_count`）
+- 函数参数：小写蛇形 + 末尾下划线（`path_`）
 
-- CMake ????????? ThreadCenter / MemoryCenter ??????
-- ??? `REQUIRE` ??? `ON` ???????? `FATAL_ERROR` ?????
+---
 
+## 11. 许可证
+
+见 `LICENSE`。

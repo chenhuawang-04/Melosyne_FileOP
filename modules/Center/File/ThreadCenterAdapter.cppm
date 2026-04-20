@@ -1,12 +1,11 @@
 ﻿module;
 
 #include <atomic>
+#include <expected>
 #include <functional>
 #include <mutex>
 #include <string>
-#include <vector>
 #include <system_error>
-#include <expected>
 
 #if defined(CENTER_FILE_HAS_THREAD_CENTER) && CENTER_FILE_HAS_THREAD_CENTER
     #include <thread_center/thread_center.hpp>
@@ -40,11 +39,11 @@ public:
         auto plan = center_.makePlan();
 
         std::mutex error_mutex;
-        std::vector<FileError> errors{};
+        DynamicArray<FileError> errors{};
         std::atomic<bool> has_error{false};
 
-        auto submit_lane = [&](const std::vector<PlannedReadTask>& tasks_, const char* lane_name_) {
-            std::vector<decltype(plan.task(ThreadCenter::TaskDesc{}, [] {}))> handles{};
+        auto submitLane = [&](const DynamicArray<PlannedReadTask>& tasks_, const char* lane_name_) {
+            DynamicArray<decltype(plan.task(ThreadCenter::TaskDesc{}, [] {}))> handles{};
             handles.reserve(tasks_.size());
 
             for (const auto& task : tasks_) {
@@ -67,9 +66,9 @@ public:
             return handles;
         };
 
-        auto urgent_handles = submit_lane(plan_.urgent_tasks, "urgent");
-        auto normal_handles = submit_lane(plan_.normal_tasks, "normal");
-        auto background_handles = submit_lane(plan_.background_tasks, "background");
+        auto urgent_handles = submitLane(plan_.urgent_tasks, "urgent");
+        auto normal_handles = submitLane(plan_.normal_tasks, "normal");
+        auto background_handles = submitLane(plan_.background_tasks, "background");
 
         auto urgent_done = plan.gate(ThreadCenter::TaskDesc{.name = "urgent_done"});
         auto normal_done = plan.gate(ThreadCenter::TaskDesc{.name = "normal_done"});
@@ -131,5 +130,3 @@ public:
 #endif
 
 } // namespace Tool::File
-
-
