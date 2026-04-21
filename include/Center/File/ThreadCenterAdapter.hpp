@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "Center/File/BuildConfig.hpp"
 #include "Center/File/Error.hpp"
 #include "Center/File/SchedulingTypes.hpp"
 
@@ -8,7 +9,7 @@
 #include <mutex>
 #include <string>
 
-#if defined(CENTER_FILE_HAS_THREAD_CENTER) && CENTER_FILE_HAS_THREAD_CENTER
+#if CENTER_FILE_HAS_THREAD_CENTER
     #include <thread_center/thread_center.hpp>
 #endif
 
@@ -16,7 +17,7 @@ namespace Tool::File {
 
 using PlannedTaskExecutor = std::function<FileStatus(const PlannedReadTask& task_)>;
 
-#if defined(CENTER_FILE_HAS_THREAD_CENTER) && CENTER_FILE_HAS_THREAD_CENTER
+#if CENTER_FILE_HAS_THREAD_CENTER
 
 class ThreadCenterAdapter {
 public:

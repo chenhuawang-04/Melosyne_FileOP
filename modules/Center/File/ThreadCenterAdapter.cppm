@@ -1,5 +1,7 @@
 ﻿module;
 
+#include "Center/File/BuildConfig.hpp"
+
 #include <atomic>
 #include <expected>
 #include <functional>
@@ -7,7 +9,7 @@
 #include <string>
 #include <system_error>
 
-#if defined(CENTER_FILE_HAS_THREAD_CENTER) && CENTER_FILE_HAS_THREAD_CENTER
+#if CENTER_FILE_HAS_THREAD_CENTER
     #include <thread_center/thread_center.hpp>
 #endif
 
@@ -20,7 +22,7 @@ export namespace Tool::File {
 
 using PlannedTaskExecutor = std::function<FileStatus(const PlannedReadTask& task_)>;
 
-#if defined(CENTER_FILE_HAS_THREAD_CENTER) && CENTER_FILE_HAS_THREAD_CENTER
+#if CENTER_FILE_HAS_THREAD_CENTER
 
 class ThreadCenterAdapter {
 public:

@@ -287,6 +287,17 @@ function(center_file_add_executable target_name source_file)
     target_compile_features(${target_name} PRIVATE cxx_std_23)
 endfunction()
 
+function(center_file_add_module_executable target_name source_file)
+    if (NOT center_file_modules_enabled)
+        message(FATAL_ERROR "center_file_add_module_executable requires center_file_modules_enabled=ON")
+    endif()
+
+    add_executable(${target_name} ${source_file})
+    target_link_libraries(${target_name} PRIVATE Tool::FileModules)
+    target_compile_features(${target_name} PRIVATE cxx_std_23)
+    set_property(TARGET ${target_name} PROPERTY CXX_SCAN_FOR_MODULES ON)
+endfunction()
+
 if (CENTER_FILE_BUILD_BENCHMARKS)
     center_file_add_executable(platform_file_benchmark bench/platform_file_benchmark.cpp)
     center_file_add_executable(file_read_scheduler_bench bench/file_read_scheduler_bench.cpp)
@@ -301,6 +312,10 @@ if (CENTER_FILE_BUILD_TESTS)
     center_file_add_executable(stream_read_session_tests tests/stream_read_session_tests.cpp)
     center_file_add_executable(stream_read_session_async_tests tests/stream_read_session_async_tests.cpp)
     center_file_add_executable(binary_read_helper_tests tests/binary_read_helper_tests.cpp)
+
+    if (center_file_modules_enabled)
+        center_file_add_module_executable(module_mapped_view_tests tests/module_mapped_view_tests.cpp)
+    endif()
 endif()
 
 if (CENTER_FILE_INSTALL)
@@ -348,6 +363,3 @@ if (CENTER_FILE_INSTALL)
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/CenterFile
     )
 endif()
-
-
-

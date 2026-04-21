@@ -1,6 +1,8 @@
 ﻿module;
 
-#if defined(CENTER_FILE_WINDOWS)
+#include "Center/File/BuildConfig.hpp"
+
+#if CENTER_FILE_PLATFORM_WINDOWS
     #ifndef WIN32_LEAN_AND_MEAN
         #define WIN32_LEAN_AND_MEAN
     #endif
@@ -141,7 +143,7 @@ public:
     }
 
 private:
-#if defined(CENTER_FILE_WINDOWS)
+#if CENTER_FILE_PLATFORM_WINDOWS
     class ScopedWinHandle {
     public:
         ScopedWinHandle() noexcept = default;
@@ -416,7 +418,7 @@ private:
     }
 
     [[nodiscard]] auto executeMappedCopyTask(const PlannedReadTask& task_) -> FileStatus {
-#if defined(CENTER_FILE_WINDOWS)
+#if CENTER_FILE_PLATFORM_WINDOWS
         auto mapping_result = openMapping(task_.path, task_.offset, task_.size_bytes);
         if (!mapping_result) {
             return std::unexpected(mapping_result.error());
@@ -460,7 +462,7 @@ private:
                                              view_container_type* out_views_,
                                              std::mutex* out_views_mutex_,
                                              const ReadViewCallback* view_callback_) -> FileStatus {
-#if defined(CENTER_FILE_WINDOWS)
+#if CENTER_FILE_PLATFORM_WINDOWS
         if (out_views_ == nullptr) {
             return executeMappedCopyTask(task_);
         }
@@ -525,7 +527,7 @@ private:
 #endif
     }
 
-#if defined(CENTER_FILE_WINDOWS)
+#if CENTER_FILE_PLATFORM_WINDOWS
     [[nodiscard]] auto openMapping(const std::filesystem::path& path_,
                                    std::uint64_t offset_,
                                    std::uint64_t size_bytes_) -> FileResult<MappingBundle> {
@@ -601,6 +603,3 @@ private:
 };
 
 } // namespace Tool::File
-
-
-

@@ -1,6 +1,6 @@
 ﻿module;
 
-#include <cstddef>
+#include "Center/File/BuildConfig.hpp"
 
 #if defined(CENTER_FILE_CUSTOM_VECTOR_HEADER)
     #include CENTER_FILE_CUSTOM_VECTOR_HEADER
